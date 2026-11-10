@@ -201,3 +201,4 @@ class DailyTechTrendsRadar:
             pass
 
         return daily_digest
+

@@ -10,6 +10,7 @@
 *.secret
 .koyeb.yaml
 *.koyeb.yaml
+.koyeb_token_backup
 
 # Python Virtual Environments & Caches
 .venv/
@@ -32,6 +33,7 @@ data/exports/*.json
 data/cache/
 *.parquet
 *.tar.gz
+!souq_migration_bundle.tar.gz
 *.log
 
 # macOS
