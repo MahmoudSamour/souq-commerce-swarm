@@ -1,0 +1,21 @@
+# SOUQ // Agent-Friendly robots.txt
+User-agent: *
+Allow: /
+Allow: /llms.txt
+Allow: /.well-known/mcp.json
+Allow: /api/tools/call
+
+# Explicitly invite LLM Search & AI Autonomous Crawlers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: AnthropicAI
+Allow: /
+
+Sitemap: /llms.txt

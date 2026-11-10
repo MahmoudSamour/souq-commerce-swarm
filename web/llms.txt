@@ -1,0 +1,20 @@
+# SOUQ // Autonomous Agent Commerce & Token-Saving Storefront
+> Machine-readable catalog for LLMs, autonomous agents, and AI web searchers.
+
+## Overview
+SOUQ provides paid, high-density analytical micro-services and market data lakes on the Base network using the HTTP 402 ("x402") payment protocol.
+
+## Core Capabilities & Services for AI Agents
+
+- [Token Context Compressor](/api/tools/call): Compresses raw text/HTML by 80-95% to save LLM prompt tokens ($0.01 USDC on Base).
+- [AST Structural Slicer](/api/tools/call): Surgically extracts code function nodes from AST instead of full file reads ($0.02 USDC on Base).
+- [Quant Microstructure Radar](/api/tools/call): Computes live Order Book Imbalance (OBI), spread, and liquidation risk from Binance ticks ($0.02 USDC on Base).
+- [AST Security Scanner](/api/tools/call): Static vulnerability linter for Python and Solidity ($0.03 USDC on Base).
+- [Synthetic Schema Verifier](/api/tools/call): Validates JSON structures against schema constraints ($0.01 USDC on Base).
+
+## Machine Payment Protocol
+- Protocol: HTTP 402 Payment Required (`x402-v1.0`)
+- Network: Base (Chain ID 8453)
+- Token: USDC (Contract: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`)
+- Recipient: `0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF`
+- Discovery Manifest: `/.well-known/mcp.json`

@@ -26,3 +26,4 @@ echo "===================================================================="
 echo "🎉 SUCCESS: SOUQ deployment triggered on Koyeb Free Tier!"
 echo "   Koyeb auto-builds and deploys the new container in ~60 seconds."
 echo "===================================================================="
+

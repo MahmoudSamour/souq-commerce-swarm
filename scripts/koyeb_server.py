@@ -45,6 +45,20 @@ async def well_known_mcp(request):
     return JSONResponse({"status": "active", "tools": ["token_compressor", "quant_radar"]})
 
 
+async def llms_txt(request):
+    txt_path = os.path.join("web", "llms.txt")
+    if os.path.exists(txt_path):
+        return FileResponse(txt_path, media_type="text/plain")
+    return HTMLResponse("# SOUQ Agent Commerce\n", media_type="text/plain")
+
+
+async def robots_txt(request):
+    robots_path = os.path.join("web", "robots.txt")
+    if os.path.exists(robots_path):
+        return FileResponse(robots_path, media_type="text/plain")
+    return HTMLResponse("User-agent: *\nAllow: /\n", media_type="text/plain")
+
+
 async def health(request):
     return JSONResponse({
         "status": "healthy",
@@ -117,6 +131,8 @@ async def api_tool_call(request):
 routes = [
     Route("/", homepage),
     Route("/health", health),
+    Route("/llms.txt", llms_txt),
+    Route("/robots.txt", robots_txt),
     Route("/.well-known/mcp.json", well_known_mcp),
     Route("/api/tools/call", api_tool_call, methods=["POST"]),
 ]
@@ -127,3 +143,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     print(f"🚀 SOUQ Koyeb Server starting on port {port}...")
     uvicorn.run(app, host="0.0.0.0", port=port)
+

@@ -31,3 +31,4 @@ HEALTHCHECK --interval=20s --timeout=5s --start-period=15s --retries=3 \
 
 # Launch production server
 CMD ["python3", "scripts/koyeb_server.py"]
+
