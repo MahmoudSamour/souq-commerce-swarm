@@ -37,6 +37,12 @@
       "estimated_tokens_saved": "Saves 12,000 tokens of multi-endpoint polling"
     },
     {
+      "name": "orderbook_slippage_simulator",
+      "description": "Walks live Binance order book depth (100 levels) to calculate VWAP, slippage, and price impact for any trade size.",
+      "price_usdc": 0.02,
+      "estimated_tokens_saved": "Saves 15,000 tokens of order book level ingestion"
+    },
+    {
       "name": "ast_security_scanner",
       "description": "Static AST code security linter for Python and Solidity.",
       "price_usdc": 0.03,

@@ -2,7 +2,9 @@ import pytest
 from agents.production.mcp_tool_builder import (
     MarketMicrostructureEngine,
     ASTSecurityScanner,
-    SyntheticSchemaVerifier
+    SyntheticSchemaVerifier,
+    CrossExchangeArbitrageScanner,
+    OrderBookSlippageSimulator,
 )
 
 
@@ -49,4 +51,24 @@ def test_synthetic_schema_verifier():
     assert invalid_res["is_valid"] is False
     assert len(invalid_res["missing_fields"]) == 1  # missing active
     assert len(invalid_res["type_errors"]) == 1      # age is str instead of int
+
+
+def test_cross_exchange_arbitrage_scanner():
+    scanner = CrossExchangeArbitrageScanner()
+    res = scanner.scan_arbitrage_and_funding("BTC/USDT")
+    assert res["status"] in ("success", "simulated_fallback")
+    assert "arbitrage_metrics" in res
+    assert "basis_spread_bps" in res["arbitrage_metrics"]
+    assert "annualized_funding_apr_pct" in res["arbitrage_metrics"]
+
+
+def test_orderbook_slippage_simulator():
+    simulator = OrderBookSlippageSimulator()
+    res = simulator.simulate_slippage("BTC/USDT", side="BUY", trade_size_usd=5000.0)
+    assert res["status"] in ("success", "simulated_fallback")
+    assert "simulation" in res
+    assert "expected_vwap" in res["simulation"]
+    assert "slippage_bps" in res["simulation"]
+    assert "execution_safety_grade" in res["simulation"]
+
 

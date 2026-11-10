@@ -18,6 +18,7 @@ from agents.production.mcp_tool_builder import (
     ASTSecurityScanner,
     SyntheticSchemaVerifier,
     CrossExchangeArbitrageScanner,
+    OrderBookSlippageSimulator,
 )
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
 from agents.treasury.x402_gateway import X402PaymentGateway
@@ -30,6 +31,7 @@ microstructure_engine = MarketMicrostructureEngine()
 security_scanner = ASTSecurityScanner()
 schema_verifier = SyntheticSchemaVerifier()
 arbitrage_scanner = CrossExchangeArbitrageScanner()
+slippage_simulator = OrderBookSlippageSimulator()
 token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
 payment_gateway = X402PaymentGateway()
@@ -112,6 +114,47 @@ def cross_exchange_arbitrage_scanner(
         return {"error": "Payment Verification Failed", "details": settlement_info}
 
     result = arbitrage_scanner.scan_arbitrage_and_funding(symbol=symbol)
+    result["settlement_receipt"] = settlement_info
+    return result
+
+
+@mcp.tool()
+def orderbook_slippage_simulator(
+    symbol: str = "BTC/USDT",
+    side: str = "BUY",
+    trade_size_usd: float = 10000.0,
+    payment_tx_hash: Optional[str] = None,
+    client_id: str = "agent-client-default"
+) -> Dict[str, Any]:
+    """
+    Simulates order-book execution depth on live Binance order book.
+    Calculates expected VWAP, price impact, and slippage in basis points (bps)
+    before an agent executes a live trade.
+    Cost: 0.02 USDC on Base. Requires payment_tx_hash.
+    """
+    price_usdc = 0.02
+    tool_name = "orderbook_slippage_simulator"
+
+    if not payment_tx_hash:
+        return payment_gateway.generate_402_challenge(
+            tool_name=tool_name,
+            price_usdc=price_usdc,
+            client_agent_id=client_id
+        )
+
+    settled, settlement_info = payment_gateway.verify_payment_and_settle(
+        tx_hash=payment_tx_hash,
+        expected_price_usdc=price_usdc,
+        tool_name=tool_name,
+        payload_data={"symbol": symbol, "side": side, "trade_size_usd": trade_size_usd},
+        client_agent_id=client_id,
+        simulate_test=_is_sim_allowed(payment_tx_hash)
+    )
+
+    if not settled:
+        return {"error": "Payment Verification Failed", "details": settlement_info}
+
+    result = slippage_simulator.simulate_slippage(symbol=symbol, side=side, trade_size_usd=trade_size_usd)
     result["settlement_receipt"] = settlement_info
     return result
 

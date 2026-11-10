@@ -24,6 +24,7 @@ from agents.production.mcp_tool_builder import (
     ASTSecurityScanner,
     SyntheticSchemaVerifier,
     CrossExchangeArbitrageScanner,
+    OrderBookSlippageSimulator,
 )
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
 from agents.treasury.x402_gateway import X402PaymentGateway
@@ -33,6 +34,7 @@ micro_engine = MarketMicrostructureEngine()
 security_scanner = ASTSecurityScanner()
 schema_verifier = SyntheticSchemaVerifier()
 arbitrage_scanner = CrossExchangeArbitrageScanner()
+slippage_simulator = OrderBookSlippageSimulator()
 token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
 payment_gw = X402PaymentGateway()
@@ -91,6 +93,7 @@ async def api_catalog(request):
             {"name": "ast_structural_slicer", "price_usdc": 0.02, "avg_tokens_saved": 3000},
             {"name": "quant_microstructure_radar", "price_usdc": 0.02, "avg_tokens_saved": 15000},
             {"name": "cross_exchange_arbitrage_scanner", "price_usdc": 0.03, "avg_tokens_saved": 12000},
+            {"name": "orderbook_slippage_simulator", "price_usdc": 0.02, "avg_tokens_saved": 15000},
             {"name": "ast_security_scanner", "price_usdc": 0.03, "avg_tokens_saved": 4000},
             {"name": "synthetic_schema_verifier", "price_usdc": 0.01, "avg_tokens_saved": 1500}
         ]
@@ -115,6 +118,7 @@ async def api_tool_call(request):
         "ast_structural_slicer": 0.02,
         "quant_microstructure_radar": 0.02,
         "cross_exchange_arbitrage_scanner": 0.03,
+        "orderbook_slippage_simulator": 0.02,
         "ast_security_scanner": 0.03,
         "synthetic_schema_verifier": 0.01
     }
@@ -151,6 +155,12 @@ async def api_tool_call(request):
         res = micro_engine.get_microstructure_metrics(body.get("symbol", "BTC/USDT"))
     elif tool_name == "cross_exchange_arbitrage_scanner":
         res = arbitrage_scanner.scan_arbitrage_and_funding(body.get("symbol", "BTC/USDT"))
+    elif tool_name == "orderbook_slippage_simulator":
+        res = slippage_simulator.simulate_slippage(
+            symbol=body.get("symbol", "BTC/USDT"),
+            side=body.get("side", "BUY"),
+            trade_size_usd=float(body.get("trade_size_usd", 10000.0))
+        )
     elif tool_name == "ast_security_scanner":
         res = security_scanner.scan_python_code(body.get("source_code", ""))
     elif tool_name == "synthetic_schema_verifier":

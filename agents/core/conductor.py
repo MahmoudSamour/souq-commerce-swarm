@@ -65,6 +65,17 @@ class RaisConductor:
                 suggested_unit_price_usd=0.03
             ),
             ProductOpportunity(
+                concept_id="ORDERBOOK_SLIPPAGE_SIMULATOR",
+                title="Real-Time Order-Book Depth Slippage & Price Impact Simulator",
+                target_buyer="A2A_AGENT",
+                demand_intensity=9.6,
+                willingness_to_pay=9.0,
+                supply_saturation=1.7,
+                synthesis_complexity=1.8,
+                legal_risk_score=1.0,
+                suggested_unit_price_usd=0.02
+            ),
+            ProductOpportunity(
                 concept_id="A2A_QUANT_RADAR",
                 title="Live Crypto Order-Book Imbalance & Liquidation Radar",
                 target_buyer="A2A_AGENT",
