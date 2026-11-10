@@ -18,3 +18,4 @@ tools:
     description: Real-time Binance order book imbalance and liquidation cascade risk.
   - name: ast_security_scanner
     description: Static AST security vulnerability linter.
+
