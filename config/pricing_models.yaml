@@ -1,0 +1,52 @@
+# SOUQ // Pricing & Negotiation Elasticity Rules
+products:
+  quant_microstructure_radar:
+    category: "mcp_tool"
+    base_price_usdc: 0.02
+    min_price_usdc: 0.01
+    max_price_usdc: 0.05
+    description: "Live crypto order-book imbalance, liquidation walls, and entropy metrics"
+    sla_ms: 150
+
+  ast_security_scanner:
+    category: "mcp_tool"
+    base_price_usdc: 0.03
+    min_price_usdc: 0.015
+    max_price_usdc: 0.08
+    description: "Static AST security linting & vulnerability analysis for Python/Solidity"
+    sla_ms: 300
+
+  synthetic_schema_verifier:
+    category: "mcp_tool"
+    base_price_usdc: 0.01
+    min_price_usdc: 0.005
+    max_price_usdc: 0.03
+    description: "Constraint-tested synthetic dataset instance and schema verifier"
+    sla_ms: 100
+
+  crypto_5y_microstructure_lake:
+    category: "digital_data_lake"
+    rail: "polar_fiat"
+    base_price_usd: 49.00
+    format: "duckdb_parquet"
+    description: "Cleaned 5-Year High-Frequency Market Microstructure & Volatility Lake"
+
+  agent_guardrail_eval_suite:
+    category: "digital_data_lake"
+    rail: "polar_fiat"
+    base_price_usd: 79.00
+    format: "parquet"
+    description: "50,000 Verified Adversarial Prompt-Response Stress Testing Pairs"
+
+  sovereign_swarm_boilerplate:
+    category: "code_boilerplate"
+    rail: "polar_fiat"
+    base_price_usd: 39.00
+    format: "github_repo_collaborator"
+    description: "Production-ready sovereign agent swarm template with FastMCP & DuckDB"
+
+negotiation:
+  auto_discount_volume_threshold: 500  # 10% discount for >500 calls/day
+  volume_discount_pct: 0.10
+  elasticity_learning_rate: 0.05
+  rejection_threshold_consecutive: 3   # lower price if 3 agents reject

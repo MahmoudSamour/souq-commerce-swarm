@@ -1,0 +1,42 @@
+# SOUQ // Swarm Orchestration & Environment Settings
+system:
+  name: "Project SOUQ"
+  version: "1.0.0"
+  description: "Autonomous Agent-to-Agent & Digital Asset Commerce Swarm"
+  environment: "production"
+  currency_default: "USDC"
+  settlement_chain: "Base"
+
+database:
+  path: "data/souq_treasury_lake.duckdb"
+  backup_interval_hours: 6
+
+logging:
+  level: "INFO"
+  format: "rich"
+  audit_dir: "data/receipts"
+  exports_dir: "data/exports"
+
+fastmcp:
+  host: "0.0.0.0"
+  port: 8402
+  transport: "sse"
+  cors_allowed_origins: ["*"]
+  rate_limit_per_min: 600
+
+settlement:
+  base:
+    chain_id: 8453
+    usdc_contract: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+    rpc_url: "https://mainnet.base.org"
+    confirmation_blocks: 1
+    max_tx_age_seconds: 180
+  polar:
+    base_url: "https://api.polar.sh/v1"
+    mor_protection: true
+
+compliance:
+  zero_pii_enforced: true
+  cfaa_public_only: true
+  dmca_non_circumvention: true
+  export_formats: ["csv", "json"]

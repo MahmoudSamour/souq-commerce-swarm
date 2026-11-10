@@ -1,0 +1,32 @@
+# Environment & Secrets
+.env
+*.env
+*.token
+*.key
+*.pem
+*.secret
+
+# Python Virtual Environments & Caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local Database Stores & Big Binary Lakes (Tracked in Cloudflare R2 / S3)
+data/*.duckdb
+data/*.duckdb.wal
+data/exports/*.csv
+data/exports/*.json
+data/cache/
+*.parquet
+*.tar.gz
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
