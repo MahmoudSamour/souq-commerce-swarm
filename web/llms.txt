@@ -18,3 +18,4 @@ SOUQ provides paid, high-density analytical micro-services and market data lakes
 - Token: USDC (Contract: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`)
 - Recipient: `0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF`
 - Discovery Manifest: `/.well-known/mcp.json`
+
