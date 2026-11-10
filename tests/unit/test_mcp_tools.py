@@ -7,6 +7,10 @@ from agents.production.mcp_tool_builder import (
     OrderBookSlippageSimulator,
     SmartMoneyWhaleRadar,
 )
+from agents.production.dev_intelligence_vault import (
+    DevAPICheatSheetVault,
+    DailyTechTrendsRadar,
+)
 
 
 def test_market_microstructure_calculation():
@@ -81,6 +85,32 @@ def test_smart_money_whale_radar():
     assert "whale_accumulation_index" in res["smart_money_signals"]
     assert "regime_verdict" in res["smart_money_signals"]
     assert "liquidation_hazard_clusters" in res["smart_money_signals"]
+
+
+def test_dev_api_cheatsheet_vault():
+    vault = DevAPICheatSheetVault()
+    res = vault.get_api_cheatsheet("openai")
+    assert res["status"] == "success"
+    assert "cheatsheet" in res
+    assert res["cheatsheet"]["title"] == "OpenAI Structured Outputs & Tools Spec"
+    assert res["tokens_saved_estimate"] >= 35000
+
+    # Test unknown ecosystem graceful handling
+    err_res = vault.get_api_cheatsheet("unknown_framework")
+    assert err_res["status"] == "error"
+    assert "available_ecosystems" in err_res
+
+
+def test_daily_tech_ai_trends_radar():
+    radar = DailyTechTrendsRadar()
+    res = radar.refresh_cache_and_get(force_refresh=True)
+    assert res["status"] == "success"
+    assert "trending_github_ai_repos" in res
+    assert len(res["trending_github_ai_repos"]) >= 2
+    assert "hackernews_breakouts" in res
+    assert "arxiv_landmark_papers" in res
+    assert res["tokens_saved_estimate"] >= 20000
+
 
 
 

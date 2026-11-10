@@ -87,6 +87,28 @@ class RaisConductor:
                 suggested_unit_price_usd=0.03
             ),
             ProductOpportunity(
+                concept_id="DEV_API_CHEATSHEET_VAULT",
+                title="Pre-Cleaned Developer API Reference & Schema Vault",
+                target_buyer="A2A_AGENT",
+                demand_intensity=9.8,
+                willingness_to_pay=9.4,
+                supply_saturation=1.2,
+                synthesis_complexity=1.6,
+                legal_risk_score=1.0,
+                suggested_unit_price_usd=0.01
+            ),
+            ProductOpportunity(
+                concept_id="DAILY_TECH_AI_TRENDS",
+                title="Daily AI & Developer Technology Intelligence Snapshot",
+                target_buyer="A2A_AGENT",
+                demand_intensity=9.7,
+                willingness_to_pay=9.3,
+                supply_saturation=1.4,
+                synthesis_complexity=1.8,
+                legal_risk_score=1.0,
+                suggested_unit_price_usd=0.01
+            ),
+            ProductOpportunity(
                 concept_id="A2A_QUANT_RADAR",
                 title="Live Crypto Order-Book Imbalance & Liquidation Radar",
                 target_buyer="A2A_AGENT",

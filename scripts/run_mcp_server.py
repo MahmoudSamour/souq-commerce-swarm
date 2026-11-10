@@ -22,6 +22,7 @@ from agents.production.mcp_tool_builder import (
     SmartMoneyWhaleRadar,
 )
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
+from agents.production.dev_intelligence_vault import DevAPICheatSheetVault, DailyTechTrendsRadar
 from agents.treasury.x402_gateway import X402PaymentGateway
 
 # Initialize FastMCP Server
@@ -36,6 +37,8 @@ slippage_simulator = OrderBookSlippageSimulator()
 whale_radar = SmartMoneyWhaleRadar()
 token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
+dev_vault = DevAPICheatSheetVault()
+trends_radar = DailyTechTrendsRadar()
 payment_gateway = X402PaymentGateway()
 
 
@@ -196,6 +199,82 @@ def smart_money_whale_flow_radar(
         return {"error": "Payment Verification Failed", "details": settlement_info}
 
     result = whale_radar.get_whale_flow_telemetry(symbol=symbol, block_threshold_usd=block_threshold_usd)
+    result["settlement_receipt"] = settlement_info
+    return result
+
+
+@mcp.tool()
+def dev_api_cheatsheet_vault(
+    ecosystem: str = "openai",
+    payment_tx_hash: Optional[str] = None,
+    client_id: str = "agent-client-default"
+) -> Dict[str, Any]:
+    """
+    Returns compressed, zero-fluff API schemas and execution code snippets
+    for major developer ecosystems (openai, anthropic, stripe, base_evm, fastmcp, duckdb).
+    Cost: 0.01 USDC on Base. Requires payment_tx_hash.
+    """
+    price_usdc = 0.01
+    tool_name = "dev_api_cheatsheet_vault"
+
+    if not payment_tx_hash:
+        return payment_gateway.generate_402_challenge(
+            tool_name=tool_name,
+            price_usdc=price_usdc,
+            client_agent_id=client_id
+        )
+
+    settled, settlement_info = payment_gateway.verify_payment_and_settle(
+        tx_hash=payment_tx_hash,
+        expected_price_usdc=price_usdc,
+        tool_name=tool_name,
+        payload_data={"ecosystem": ecosystem},
+        client_agent_id=client_id,
+        simulate_test=_is_sim_allowed(payment_tx_hash)
+    )
+
+    if not settled:
+        return {"error": "Payment Verification Failed", "details": settlement_info}
+
+    result = dev_vault.get_api_cheatsheet(ecosystem=ecosystem)
+    result["settlement_receipt"] = settlement_info
+    return result
+
+
+@mcp.tool()
+def daily_tech_ai_trends_radar(
+    force_refresh: bool = False,
+    payment_tx_hash: Optional[str] = None,
+    client_id: str = "agent-client-default"
+) -> Dict[str, Any]:
+    """
+    Returns a daily structured intelligence snapshot of trending GitHub AI repos,
+    HackerNews developer breakthroughs, and arXiv landmark architectures.
+    Cost: 0.01 USDC on Base. Requires payment_tx_hash.
+    """
+    price_usdc = 0.01
+    tool_name = "daily_tech_ai_trends_radar"
+
+    if not payment_tx_hash:
+        return payment_gateway.generate_402_challenge(
+            tool_name=tool_name,
+            price_usdc=price_usdc,
+            client_agent_id=client_id
+        )
+
+    settled, settlement_info = payment_gateway.verify_payment_and_settle(
+        tx_hash=payment_tx_hash,
+        expected_price_usdc=price_usdc,
+        tool_name=tool_name,
+        payload_data={"force_refresh": force_refresh},
+        client_agent_id=client_id,
+        simulate_test=_is_sim_allowed(payment_tx_hash)
+    )
+
+    if not settled:
+        return {"error": "Payment Verification Failed", "details": settlement_info}
+
+    result = trends_radar.refresh_cache_and_get(force_refresh=force_refresh)
     result["settlement_receipt"] = settlement_info
     return result
 

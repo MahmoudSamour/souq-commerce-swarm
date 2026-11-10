@@ -60,6 +60,30 @@ print(json.dumps(summary, indent=2))
         echo "🔄 Synchronizing with private GitHub repository..."
         bash scripts/sync_github.sh
         ;;
+    refresh-trends)
+        echo "⚡ Refreshing Daily Tech & AI Trends Cache..."
+        python3 -c "
+from agents.production.dev_intelligence_vault import DailyTechTrendsRadar
+radar = DailyTechTrendsRadar()
+res = radar.refresh_cache_and_get(force_refresh=True)
+print('✅ Fresh Daily Digest generated for date:', res['digest_date'])
+"
+        ;;
+    daemon)
+        INTERVAL_HOURS="${2:-24}"
+        echo "🤖 Starting SOUQ Autonomous Scheduled Background Daemon (Every $INTERVAL_HOURS hours)..."
+        while true; do
+            echo "⏰ [$(date)] Executing autonomous discovery & cache refresh cycle..."
+            python3 -c "
+from agents.production.dev_intelligence_vault import DailyTechTrendsRadar
+from agents.core.conductor import RaisConductor
+DailyTechTrendsRadar().refresh_cache_and_get(force_refresh=True)
+RaisConductor().run_daily_cycle()
+"
+            echo "💤 Sleeping for $INTERVAL_HOURS hours. Press Ctrl+C to stop."
+            sleep "$((INTERVAL_HOURS * 3600))"
+        done
+        ;;
     help|*)
         echo "===================================================================="
         echo "🏛️  PROJECT SOUQ (السوق) // AUTONOMOUS AGENT COMMERCE SWARM"
@@ -74,6 +98,8 @@ print(json.dumps(summary, indent=2))
         echo "  telemetry      Display real-time A2A negotiation & revenue telemetry"
         echo "  test           Execute full unit and integration test suite"
         echo "  sync           Commit and push all changes to private GitHub repo"
+        echo "  refresh-trends Manually trigger cache refresh of daily AI & tech signals"
+        echo "  daemon [hours] Run autonomous background cycle daemon (default: every 24h)"
         echo "  help           Display this guide"
         echo "===================================================================="
         ;;

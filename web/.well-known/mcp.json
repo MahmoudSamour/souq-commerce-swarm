@@ -49,6 +49,18 @@
       "estimated_tokens_saved": "Saves 20,000 tokens of raw tick and order flow parsing"
     },
     {
+      "name": "dev_api_cheatsheet_vault",
+      "description": "Compressed, zero-fluff API schemas and execution code snippets for major developer ecosystems (openai, anthropic, stripe, base_evm, fastmcp, duckdb).",
+      "price_usdc": 0.01,
+      "estimated_tokens_saved": "Saves 40,000 tokens of web doc scraping"
+    },
+    {
+      "name": "daily_tech_ai_trends_radar",
+      "description": "Daily structured intelligence snapshot of trending GitHub AI repos, HackerNews breakthroughs, and arXiv landmark architectures.",
+      "price_usdc": 0.01,
+      "estimated_tokens_saved": "Saves 25,000 tokens of multi-site web searching"
+    },
+    {
       "name": "ast_security_scanner",
       "description": "Static AST code security linter for Python and Solidity.",
       "price_usdc": 0.03,

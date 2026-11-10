@@ -79,6 +79,7 @@ from agents.production.mcp_tool_builder import (
     SmartMoneyWhaleRadar,
 )
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
+from agents.production.dev_intelligence_vault import DevAPICheatSheetVault, DailyTechTrendsRadar
 from agents.treasury.x402_gateway import X402PaymentGateway
 
 # Initialize Engines
@@ -90,6 +91,8 @@ slippage_simulator = OrderBookSlippageSimulator()
 whale_radar = SmartMoneyWhaleRadar()
 token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
+dev_vault = DevAPICheatSheetVault()
+trends_radar = DailyTechTrendsRadar()
 payment_gw = X402PaymentGateway()
 
 
@@ -148,6 +151,8 @@ async def api_catalog(request):
             {"name": "cross_exchange_arbitrage_scanner", "price_usdc": 0.03, "avg_tokens_saved": 12000},
             {"name": "orderbook_slippage_simulator", "price_usdc": 0.02, "avg_tokens_saved": 15000},
             {"name": "smart_money_whale_flow_radar", "price_usdc": 0.03, "avg_tokens_saved": 20000},
+            {"name": "dev_api_cheatsheet_vault", "price_usdc": 0.01, "avg_tokens_saved": 40000},
+            {"name": "daily_tech_ai_trends_radar", "price_usdc": 0.01, "avg_tokens_saved": 25000},
             {"name": "ast_security_scanner", "price_usdc": 0.03, "avg_tokens_saved": 4000},
             {"name": "synthetic_schema_verifier", "price_usdc": 0.01, "avg_tokens_saved": 1500}
         ]
@@ -174,6 +179,8 @@ async def api_tool_call(request):
         "cross_exchange_arbitrage_scanner": 0.03,
         "orderbook_slippage_simulator": 0.02,
         "smart_money_whale_flow_radar": 0.03,
+        "dev_api_cheatsheet_vault": 0.01,
+        "daily_tech_ai_trends_radar": 0.01,
         "ast_security_scanner": 0.03,
         "synthetic_schema_verifier": 0.01
     }
@@ -221,6 +228,10 @@ async def api_tool_call(request):
             symbol=body.get("symbol", "BTC/USDT"),
             block_threshold_usd=float(body.get("block_threshold_usd", 50000.0))
         )
+    elif tool_name == "dev_api_cheatsheet_vault":
+        res = dev_vault.get_api_cheatsheet(ecosystem=body.get("ecosystem", "openai"))
+    elif tool_name == "daily_tech_ai_trends_radar":
+        res = trends_radar.refresh_cache_and_get(force_refresh=bool(body.get("force_refresh", False)))
     elif tool_name == "ast_security_scanner":
         res = security_scanner.scan_python_code(body.get("source_code", ""))
     elif tool_name == "synthetic_schema_verifier":
