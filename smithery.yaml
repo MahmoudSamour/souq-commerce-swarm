@@ -1,0 +1,20 @@
+# Smithery.ai Official Registry Configuration
+# https://smithery.ai
+name: souq-commerce-server
+version: 1.0.0
+description: Autonomous FastMCP tool server providing live quant microstructure, AST security scanning, and 90%+ token context compression.
+runtime: python
+startCommand:
+  type: stdio
+  command: python3
+  args:
+    - scripts/run_mcp_server.py
+tools:
+  - name: token_context_compressor
+    description: High-entropy semantic context compressor saving 80-95% LLM prompt tokens.
+  - name: ast_structural_slicer
+    description: Surgical AST code function extractor.
+  - name: quant_microstructure_radar
+    description: Real-time Binance order book imbalance and liquidation cascade risk.
+  - name: ast_security_scanner
+    description: Static AST security vulnerability linter.

@@ -50,3 +50,4 @@ def helper_beta():
     assert "helper_alpha" not in res["sliced_code"]
     assert "helper_beta" not in res["sliced_code"]
     assert res["tokens_saved"] > 0
+

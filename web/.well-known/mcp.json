@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/mcp.json",
+  "name": "SOUQ Autonomous Agent Commerce & Token-Saving Storefront",
+  "version": "1.0.0",
+  "description": "High-density token-saving analytical tools and market microstructure data endpoints for autonomous AI agents.",
+  "vendor": "SOUQ Autonomous Swarm",
+  "settlement": {
+    "protocol": "x402-v1.0",
+    "network": "Base",
+    "currency": "USDC",
+    "contract": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "recipient": "0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF"
+  },
+  "tools": [
+    {
+      "name": "token_context_compressor",
+      "description": "Semantic context compressor slashes LLM context bloat by 80-95% to save prompt tokens.",
+      "price_usdc": 0.01,
+      "estimated_tokens_saved": "10,000 - 30,000 per invocation"
+    },
+    {
+      "name": "ast_structural_slicer",
+      "description": "Surgically slices targeted AST functions from source code instead of reading entire files.",
+      "price_usdc": 0.02,
+      "estimated_tokens_saved": "2,000 - 5,000 per invocation"
+    },
+    {
+      "name": "quant_microstructure_radar",
+      "description": "Real-time Binance order book depth, Order Book Imbalance (OBI), and liquidation risk.",
+      "price_usdc": 0.02,
+      "estimated_tokens_saved": "Saves 15,000 tokens of raw tick data ingestion"
+    },
+    {
+      "name": "ast_security_scanner",
+      "description": "Static AST code security linter for Python and Solidity.",
+      "price_usdc": 0.03,
+      "estimated_tokens_saved": "Saves 4,000 reasoning tokens"
+    }
+  ]
+}

@@ -33,6 +33,11 @@ print(json.dumps(report, indent=2))
         echo "⚡ Launching SOUQ Paid FastMCP Server with x402 Base USDC Gateway on port $PORT..."
         python3 scripts/run_mcp_server.py --port "$PORT"
         ;;
+    web)
+        PORT="${2:-8080}"
+        echo "🌐 Launching SOUQ Web Storefront on http://localhost:$PORT..."
+        python3 -m http.server "$PORT" --directory web
+        ;;
     tax-report)
         echo "📊 Generating IRS & Koinly-Compliant Crypto Tax Audit Report..."
         python3 scripts/export_tax_receipts.py
@@ -64,6 +69,7 @@ print(json.dumps(summary, indent=2))
         echo "Commands:"
         echo "  cycle          Execute autonomous discovery, compliance & listing cycle"
         echo "  server [port]  Launch paid FastMCP server with HTTP 402 Base USDC gateway"
+        echo "  web [port]     Launch interactive web storefront (default port 8080)"
         echo "  tax-report     Generate Koinly/CoinTracker CSV & JSON receipts"
         echo "  telemetry      Display real-time A2A negotiation & revenue telemetry"
         echo "  test           Execute full unit and integration test suite"
