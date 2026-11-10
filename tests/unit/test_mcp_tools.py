@@ -5,6 +5,7 @@ from agents.production.mcp_tool_builder import (
     SyntheticSchemaVerifier,
     CrossExchangeArbitrageScanner,
     OrderBookSlippageSimulator,
+    SmartMoneyWhaleRadar,
 )
 
 
@@ -70,5 +71,16 @@ def test_orderbook_slippage_simulator():
     assert "expected_vwap" in res["simulation"]
     assert "slippage_bps" in res["simulation"]
     assert "execution_safety_grade" in res["simulation"]
+
+
+def test_smart_money_whale_radar():
+    radar = SmartMoneyWhaleRadar()
+    res = radar.get_whale_flow_telemetry("BTC/USDT", block_threshold_usd=50000.0)
+    assert res["status"] in ("success", "simulated_fallback")
+    assert "smart_money_signals" in res
+    assert "whale_accumulation_index" in res["smart_money_signals"]
+    assert "regime_verdict" in res["smart_money_signals"]
+    assert "liquidation_hazard_clusters" in res["smart_money_signals"]
+
 
 

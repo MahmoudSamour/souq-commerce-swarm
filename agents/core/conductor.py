@@ -76,6 +76,17 @@ class RaisConductor:
                 suggested_unit_price_usd=0.02
             ),
             ProductOpportunity(
+                concept_id="SMART_MONEY_WHALE_RADAR",
+                title="Smart Money & Whale Block Flow Accumulation Radar",
+                target_buyer="A2A_AGENT",
+                demand_intensity=9.9,
+                willingness_to_pay=9.6,
+                supply_saturation=1.5,
+                synthesis_complexity=2.2,
+                legal_risk_score=1.0,
+                suggested_unit_price_usd=0.03
+            ),
+            ProductOpportunity(
                 concept_id="A2A_QUANT_RADAR",
                 title="Live Crypto Order-Book Imbalance & Liquidation Radar",
                 target_buyer="A2A_AGENT",

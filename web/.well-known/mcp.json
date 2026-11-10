@@ -43,6 +43,12 @@
       "estimated_tokens_saved": "Saves 15,000 tokens of order book level ingestion"
     },
     {
+      "name": "smart_money_whale_flow_radar",
+      "description": "Aggregates live whale block trades (> $50k), calculates Whale Accumulation Index, and identifies Open Interest liquidation clusters.",
+      "price_usdc": 0.03,
+      "estimated_tokens_saved": "Saves 20,000 tokens of raw tick and order flow parsing"
+    },
+    {
       "name": "ast_security_scanner",
       "description": "Static AST code security linter for Python and Solidity.",
       "price_usdc": 0.03,
