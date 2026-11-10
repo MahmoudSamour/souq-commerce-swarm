@@ -39,28 +39,28 @@ payment_gw = X402PaymentGateway()
 
 
 async def homepage(request):
-    index_path = os.path.join("web", "index.html")
+    index_path = os.path.join(PROJECT_ROOT, "web", "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return HTMLResponse("<h1>SOUQ Autonomous Agent Commerce</h1>")
 
 
 async def well_known_mcp(request):
-    mcp_json_path = os.path.join("web", ".well-known", "mcp.json")
+    mcp_json_path = os.path.join(PROJECT_ROOT, "web", ".well-known", "mcp.json")
     if os.path.exists(mcp_json_path):
         return FileResponse(mcp_json_path, media_type="application/json")
     return JSONResponse({"status": "active", "tools": ["token_compressor", "quant_radar"]})
 
 
 async def llms_txt(request):
-    txt_path = os.path.join("web", "llms.txt")
+    txt_path = os.path.join(PROJECT_ROOT, "web", "llms.txt")
     if os.path.exists(txt_path):
         return FileResponse(txt_path, media_type="text/plain")
     return HTMLResponse("# SOUQ Agent Commerce\n", media_type="text/plain")
 
 
 async def robots_txt(request):
-    robots_path = os.path.join("web", "robots.txt")
+    robots_path = os.path.join(PROJECT_ROOT, "web", "robots.txt")
     if os.path.exists(robots_path):
         return FileResponse(robots_path, media_type="text/plain")
     return HTMLResponse("User-agent: *\nAllow: /\n", media_type="text/plain")
