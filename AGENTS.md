@@ -22,3 +22,4 @@
 
 ## 5. Merchant of Record (MoR) Fiat Protection
 - **Polar.sh as Legal MoR**: All fiat transactions (data lakes and code templates) are processed through Polar.sh to ensure 100% of global VAT/GST and sales taxes are collected and remitted automatically.
+

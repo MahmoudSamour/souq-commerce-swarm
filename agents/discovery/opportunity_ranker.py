@@ -57,3 +57,4 @@ class OpportunityRanker:
         # Sort descending by SOM score
         scored.sort(key=lambda x: x["som_score"], reverse=True)
         return scored
+

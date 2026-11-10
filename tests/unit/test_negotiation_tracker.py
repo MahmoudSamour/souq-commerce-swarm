@@ -38,3 +38,4 @@ def test_negotiation_logging_and_summary(temp_tracker):
     assert summary["successful_settlements"] == 1
     assert summary["conversion_rate_pct"] == 50.0
     assert len(summary["tool_telemetry"]) == 2
+

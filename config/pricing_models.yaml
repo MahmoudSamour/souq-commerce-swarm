@@ -50,3 +50,4 @@ negotiation:
   volume_discount_pct: 0.10
   elasticity_learning_rate: 0.05
   rejection_threshold_consecutive: 3   # lower price if 3 agents reject
+

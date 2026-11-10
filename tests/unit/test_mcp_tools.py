@@ -49,3 +49,4 @@ def test_synthetic_schema_verifier():
     assert invalid_res["is_valid"] is False
     assert len(invalid_res["missing_fields"]) == 1  # missing active
     assert len(invalid_res["type_errors"]) == 1      # age is str instead of int
+

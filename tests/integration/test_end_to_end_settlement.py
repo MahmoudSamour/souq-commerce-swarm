@@ -73,3 +73,4 @@ def test_full_agent_to_agent_purchase_and_tax_loop(tmp_path):
     cycle_report = conductor.run_daily_cycle()
     assert cycle_report["status"] == "OPERATIONAL_AND_REVENUE_READY"
     assert len(cycle_report["active_catalog"]) >= 3
+

@@ -20,3 +20,4 @@ fi
 
 git push origin main
 echo "🚀 Successfully synchronized with origin/main!"
+

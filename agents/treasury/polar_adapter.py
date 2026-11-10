@@ -101,3 +101,4 @@ class PolarAdapter:
             }
 
         return {"status": "IGNORED", "reason": f"Unhandled event type: {event_type}"}
+

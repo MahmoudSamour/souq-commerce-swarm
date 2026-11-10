@@ -169,3 +169,4 @@ class X402PaymentGateway:
             "amount_paid_usdc": expected_price_usdc,
             "tx_hash": tx_hash
         }
+

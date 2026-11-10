@@ -136,3 +136,4 @@ class NegotiationTracker:
             "tool_telemetry": tool_breakdown,
             "rejection_analysis": rejection_stats
         }
+

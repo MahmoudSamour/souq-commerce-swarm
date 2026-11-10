@@ -198,3 +198,4 @@ class SyntheticSchemaVerifier:
             "type_errors": type_mismatches,
             "latency_ms": latency_ms
         }
+
