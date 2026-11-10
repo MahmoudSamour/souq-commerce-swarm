@@ -35,6 +35,7 @@ data/cache/
 *.tar.gz
 !souq_migration_bundle.tar.gz
 *.log
+logs/
 
 # macOS
 .DS_Store

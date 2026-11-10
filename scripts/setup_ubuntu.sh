@@ -15,9 +15,13 @@ echo "===================================================================="
 
 # 1. System Packages via apt
 if command -v apt-get &> /dev/null; then
-    echo "📦 Checking and installing system dependencies via apt..."
-    sudo apt-get update -y
-    sudo apt-get install -y python3 python3-pip python3-venv curl build-essential git
+    if sudo -n true 2>/dev/null; then
+        echo "📦 Checking and installing system dependencies via apt..."
+        sudo apt-get update -y
+        sudo apt-get install -y python3 python3-pip python3-venv curl build-essential git
+    else
+        echo "ℹ️  Passwordless sudo not available; using existing system packages."
+    fi
 fi
 
 # 2. Virtual Environment
@@ -49,7 +53,11 @@ if ! command -v koyeb &> /dev/null; then
     echo "⚡ Installing Koyeb CLI for Ubuntu Linux..."
     curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | sh || true
     if [ -f "$HOME/.koyeb/bin/koyeb" ]; then
-        sudo ln -sf "$HOME/.koyeb/bin/koyeb" /usr/local/bin/koyeb || true
+        mkdir -p "$HOME/.local/bin"
+        ln -sf "$HOME/.koyeb/bin/koyeb" "$HOME/.local/bin/koyeb" || true
+        if sudo -n true 2>/dev/null; then
+            sudo ln -sf "$HOME/.koyeb/bin/koyeb" /usr/local/bin/koyeb || true
+        fi
     fi
 fi
 

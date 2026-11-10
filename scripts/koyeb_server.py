@@ -124,6 +124,13 @@ async def robots_txt(request):
     return HTMLResponse("User-agent: *\nAllow: /\n", media_type="text/plain")
 
 
+async def sitemap_xml(request):
+    sitemap_path = os.path.join(PROJECT_ROOT, "web", "sitemap.xml")
+    if os.path.exists(sitemap_path):
+        return FileResponse(sitemap_path, media_type="application/xml")
+    return HTMLResponse("<?xml version='1.0'?><urlset></urlset>", media_type="application/xml")
+
+
 async def health(request):
     return JSONResponse({
         "status": "healthy",
@@ -248,6 +255,7 @@ routes = [
     Route("/health", health),
     Route("/llms.txt", llms_txt),
     Route("/robots.txt", robots_txt),
+    Route("/sitemap.xml", sitemap_xml),
     Route("/.well-known/mcp.json", well_known_mcp),
     Route("/api/catalog", api_catalog),
     Route("/api/tools/call", api_tool_call, methods=["POST"]),

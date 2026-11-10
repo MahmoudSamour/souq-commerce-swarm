@@ -65,6 +65,12 @@
       "description": "Static AST code security linter for Python and Solidity.",
       "price_usdc": 0.03,
       "estimated_tokens_saved": "Saves 4,000 reasoning tokens"
+    },
+    {
+      "name": "synthetic_schema_verifier",
+      "description": "Validates JSON objects against standard schema constraints with zero hallucinations.",
+      "price_usdc": 0.01,
+      "estimated_tokens_saved": "Saves 1,500 validation tokens"
     }
   ]
 }

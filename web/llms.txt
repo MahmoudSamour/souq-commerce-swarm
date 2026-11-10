@@ -1,21 +1,92 @@
 # SOUQ // Autonomous Agent Commerce & Token-Saving Storefront
 > Machine-readable catalog for LLMs, autonomous agents, and AI web searchers.
+> Official Public Server: https://written-emera-arapython-bf7436a4.apps.mistral.run
 
 ## Overview
-SOUQ provides paid, high-density analytical micro-services and market data lakes on the Base network using the HTTP 402 ("x402") payment protocol.
+SOUQ provides paid, high-density analytical micro-services and market intelligence on the Base L2 network using the HTTP 402 ("x402") payment protocol.
+Agents query endpoints, receive an HTTP 402 challenge with exact sub-cent price, settle on Base USDC, and instantly receive responses with cryptographically verified SHA-256 tax receipts.
 
-## Core Capabilities & Services for AI Agents
+## Server Endpoints
+- Public Catalog: https://written-emera-arapython-bf7436a4.apps.mistral.run/api/catalog
+- Tool Execution Endpoint (POST): https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call
+- Machine Registry: https://written-emera-arapython-bf7436a4.apps.mistral.run/.well-known/mcp.json
+- Health Probe: https://written-emera-arapython-bf7436a4.apps.mistral.run/health
 
-- [Token Context Compressor](/api/tools/call): Compresses raw text/HTML by 80-95% to save LLM prompt tokens ($0.01 USDC on Base).
-- [AST Structural Slicer](/api/tools/call): Surgically extracts code function nodes from AST instead of full file reads ($0.02 USDC on Base).
-- [Quant Microstructure Radar](/api/tools/call): Computes live Order Book Imbalance (OBI), spread, and liquidation risk from Binance ticks ($0.02 USDC on Base).
-- [AST Security Scanner](/api/tools/call): Static vulnerability linter for Python and Solidity ($0.03 USDC on Base).
-- [Synthetic Schema Verifier](/api/tools/call): Validates JSON structures against schema constraints ($0.01 USDC on Base).
-
-## Machine Payment Protocol
+## Machine Payment Protocol (x402-v1.0)
 - Protocol: HTTP 402 Payment Required (`x402-v1.0`)
-- Network: Base (Chain ID 8453)
-- Token: USDC (Contract: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`)
-- Recipient: `0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF`
-- Discovery Manifest: `/.well-known/mcp.json`
+- Settlement Network: Base (EVM Chain ID: 8453)
+- Settlement Currency: USDC (Contract: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`)
+- Recipient Wallet: `0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF`
+- Instructions: Call `POST /api/tools/call` with payload `{"tool": "<tool_name>", ...}`. If no `X-Payment-Tx` header is provided, the server returns status 402 with challenge details. Submit payment on Base, then re-call with header `X-Payment-Tx: <tx_hash>`.
 
+## Available Micro-Service Tools
+
+### 1. Token Context Compressor
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "token_context_compressor", "raw_content": "<string>"}`
+- Price: 0.01 USDC ($0.01)
+- Tokens Saved: 10,000 - 30,000 tokens (80-95% context reduction)
+- Description: High-entropy semantic compressor for raw text, JSON, or HTML. Slashes prompt context costs before LLM inference.
+
+### 2. AST Structural Slicer
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "ast_structural_slicer", "source_code": "<code_string>", "target_symbol": "<symbol_name>"}`
+- Price: 0.02 USDC ($0.02)
+- Tokens Saved: 2,000 - 5,000 tokens per invocation
+- Description: Parses AST and extracts isolated functions, classes, and dependencies without sending full source files into context.
+
+### 3. Quant Microstructure Radar
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "quant_microstructure_radar", "symbol": "BTC/USDT"}`
+- Price: 0.02 USDC ($0.02)
+- Tokens Saved: 15,000 tokens of raw order-book ingestion
+- Description: Computes live Order Book Imbalance (OBI), micro-spread (bps), market regime classification, and liquidation risk from live Binance order books.
+
+### 4. Cross-Exchange Arbitrage & Funding Scanner
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "cross_exchange_arbitrage_scanner", "symbol": "BTC/USDT"}`
+- Price: 0.03 USDC ($0.03)
+- Tokens Saved: 12,000 tokens of multi-exchange polling
+- Description: Calculates Spot vs. Perpetual basis spreads and annualized delta-neutral funding rate APR across crypto markets.
+
+### 5. Order Book Slippage & Impact Simulator
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "orderbook_slippage_simulator", "symbol": "BTC/USDT", "side": "BUY", "trade_size_usd": 10000.0}`
+- Price: 0.02 USDC ($0.02)
+- Tokens Saved: 15,000 tokens of tick ingestion
+- Description: Walks live top 100 order book levels to compute exact VWAP execution price, slippage bps, and market depth impact.
+
+### 6. Smart Money Whale Flow Radar
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "smart_money_whale_flow_radar", "symbol": "BTC/USDT", "block_threshold_usd": 50000.0}`
+- Price: 0.03 USDC ($0.03)
+- Tokens Saved: 20,000 tokens
+- Description: Detects institutional block trade accumulations, calculates Whale Accumulation Index, and highlights liquidation clusters.
+
+### 7. Developer API Reference & Schema Vault
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "dev_api_cheatsheet_vault", "ecosystem": "openai"}` (or: `anthropic`, `stripe`, `base_evm`, `fastmcp`, `duckdb`)
+- Price: 0.01 USDC ($0.01)
+- Tokens Saved: 40,000 tokens of documentation scraping
+- Description: Curated, high-density API schemas and clean code patterns for major developer platforms.
+
+### 8. Daily AI & Tech Trends Radar
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "daily_tech_ai_trends_radar", "force_refresh": false}`
+- Price: 0.01 USDC ($0.01)
+- Tokens Saved: 25,000 tokens of web searching
+- Description: Daily synthesized intelligence snapshot covering top trending GitHub AI repositories, HackerNews breakthroughs, and arXiv papers.
+
+### 9. AST Security Vulnerability Scanner
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "ast_security_scanner", "source_code": "<code_string>"}`
+- Price: 0.03 USDC ($0.03)
+- Tokens Saved: 4,000 tokens of reasoning
+- Description: Fast static AST security audit for Python and Solidity, checking for dangerous calls, injection risks, and reentrancy flaws.
+
+### 10. Synthetic Schema Verifier
+- Endpoint: `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call`
+- Payload: `{"tool": "synthetic_schema_verifier", "data": {...}, "schema": {...}}`
+- Price: 0.01 USDC ($0.01)
+- Tokens Saved: 1,500 tokens
+- Description: Deterministic schema conformity validator ensuring zero-hallucination agent data exchange.

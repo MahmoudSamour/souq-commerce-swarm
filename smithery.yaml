@@ -1,8 +1,8 @@
 # Smithery.ai Official Registry Configuration
 # https://smithery.ai
 name: souq-commerce-server
-version: 1.0.0
-description: Autonomous FastMCP tool server providing live quant microstructure, AST security scanning, and 90%+ token context compression.
+version: 1.1.0
+description: Autonomous FastMCP tool server providing live quant microstructure, AST security scanning, and 90%+ token context compression on Base USDC.
 runtime: python
 startCommand:
   type: stdio
@@ -15,7 +15,18 @@ tools:
   - name: ast_structural_slicer
     description: Surgical AST code function extractor.
   - name: quant_microstructure_radar
-    description: Real-time Binance order book imbalance and liquidation cascade risk.
+    description: Real-time Binance order book imbalance, spread, and liquidation cascade risk.
+  - name: cross_exchange_arbitrage_scanner
+    description: Spot vs Perpetual futures basis spread and delta-neutral funding APR scanner.
+  - name: orderbook_slippage_simulator
+    description: Live top 100 orderbook depth VWAP execution price and slippage simulator.
+  - name: smart_money_whale_flow_radar
+    description: Institutional block trade flow radar and whale accumulation telemetry.
+  - name: dev_api_cheatsheet_vault
+    description: Pre-cleaned developer API reference and schema vault for LLM agents.
+  - name: daily_tech_ai_trends_radar
+    description: Daily AI and developer technology signals, GitHub trending repos, and arXiv digests.
   - name: ast_security_scanner
-    description: Static AST security vulnerability linter.
-
+    description: Static AST security vulnerability linter for Python and Solidity.
+  - name: synthetic_schema_verifier
+    description: Strict JSON schema conformity verifier with zero hallucinations.

@@ -69,6 +69,13 @@ res = radar.refresh_cache_and_get(force_refresh=True)
 print('✅ Fresh Daily Digest generated for date:', res['digest_date'])
 "
         ;;
+    upgrade-goods)
+        bash scripts/daily_goods_upgrade.sh
+        ;;
+    herald)
+        echo "📢 Running Munadi Distribution Herald (Endpoint Audit & Registry Manifest)..."
+        python3 agents/distribution/munadi_herald.py
+        ;;
     daemon)
         INTERVAL_HOURS="${2:-24}"
         echo "🤖 Starting SOUQ Autonomous Scheduled Background Daemon (Every $INTERVAL_HOURS hours)..."
@@ -99,6 +106,8 @@ RaisConductor().run_daily_cycle()
         echo "  test           Execute full unit and integration test suite"
         echo "  sync           Commit and push all changes to private GitHub repo"
         echo "  refresh-trends Manually trigger cache refresh of daily AI & tech signals"
+        echo "  upgrade-goods  Execute full daily goods upgrade (radar & catalog cycle)"
+        echo "  herald         Audit public discovery endpoints and generate registry info"
         echo "  daemon [hours] Run autonomous background cycle daemon (default: every 24h)"
         echo "  help           Display this guide"
         echo "===================================================================="
