@@ -42,3 +42,17 @@ def test_health_probe(client):
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
 
+
+def test_security_headers_and_protection(client):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.headers.get("X-Frame-Options") == "DENY"
+    assert response.headers.get("X-Content-Type-Options") == "nosniff"
+    assert response.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+
+    # Test payload size protection (simulated 2MB payload)
+    large_payload_headers = {"Content-Length": "2097152"}
+    oversized_res = client.post("/api/tools/call", headers=large_payload_headers)
+    assert oversized_res.status_code == 413
+    assert "Payload Too Large" in oversized_res.json()["error"]
+

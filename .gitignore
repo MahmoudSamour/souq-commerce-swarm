@@ -1,10 +1,15 @@
 # Environment & Secrets
 .env
 *.env
+**/.env
+**/.env*
+!**/.env.example
 *.token
 *.key
 *.pem
 *.secret
+.koyeb.yaml
+*.koyeb.yaml
 
 # Python Virtual Environments & Caches
 .venv/
@@ -17,7 +22,9 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Local Database Stores & Big Binary Lakes (Tracked in Cloudflare R2 / S3)
+# Local Financial Receipts & Data Stores
+data/receipts/*.json
+!data/receipts/.gitkeep
 data/*.duckdb
 data/*.duckdb.wal
 data/exports/*.csv
@@ -25,6 +32,7 @@ data/exports/*.json
 data/cache/
 *.parquet
 *.tar.gz
+*.log
 
 # macOS
 .DS_Store

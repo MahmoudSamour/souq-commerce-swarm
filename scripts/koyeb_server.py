@@ -9,15 +9,66 @@ Unified ASGI server running on Koyeb Free Tier:
 
 import os
 import sys
+import time
+from dotenv import load_dotenv
 from starlette.applications import Starlette
 from starlette.responses import HTMLResponse, JSONResponse, FileResponse
 from starlette.routing import Route, Mount
 from starlette.staticfiles import StaticFiles
+from starlette.middleware import Middleware
+from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
 
-# Ensure project root is on path
+# Ensure project root is on path & load secure environment
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, PROJECT_ROOT)
+load_dotenv(os.path.join(PROJECT_ROOT, "config", ".env"))
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
+
+MAX_PAYLOAD_BYTES = int(os.getenv("SOUQ_MAX_PAYLOAD_BYTES", "1048576"))
+RATE_LIMIT_PER_MINUTE = int(os.getenv("SOUQ_RATE_LIMIT_PER_MINUTE", "120"))
+
+# In-memory sliding window rate-limiter per IP
+_ip_request_history = {}
+
+
+class SecurityHeadersAndProtectionMiddleware(BaseHTTPMiddleware):
+    """
+    Production Security Shield:
+    - Enforces Anti-Clickjacking & Anti-MIME sniffing headers
+    - Throttles abusive DDoS requests per IP
+    - Blocks oversized memory-bomb payloads
+    """
+
+    async def dispatch(self, request, call_next):
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+
+        # Sliding window rate limiter
+        history = [t for t in _ip_request_history.get(client_ip, []) if now - t < 60]
+        if len(history) >= RATE_LIMIT_PER_MINUTE:
+            return JSONResponse(
+                {"error": "Too Many Requests", "message": "Rate limit exceeded. Please throttle automated calls."},
+                status_code=429,
+                headers={"Retry-After": "60"}
+            )
+        history.append(now)
+        _ip_request_history[client_ip] = history
+
+        # Enforce max payload size
+        content_length = request.headers.get("Content-Length")
+        if content_length and int(content_length) > MAX_PAYLOAD_BYTES:
+            return JSONResponse(
+                {"error": "Payload Too Large", "max_allowed_bytes": MAX_PAYLOAD_BYTES},
+                status_code=413
+            )
+
+        response = await call_next(request)
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        return response
 
 from agents.production.mcp_tool_builder import (
     MarketMicrostructureEngine,
@@ -191,7 +242,11 @@ routes = [
     Route("/api/tools/call", api_tool_call, methods=["POST"]),
 ]
 
-app = Starlette(debug=False, routes=routes)
+middleware = [
+    Middleware(SecurityHeadersAndProtectionMiddleware)
+]
+
+app = Starlette(debug=False, routes=routes, middleware=middleware)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
