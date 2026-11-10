@@ -16,9 +16,15 @@ from starlette.staticfiles import StaticFiles
 import uvicorn
 
 # Ensure project root is on path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, PROJECT_ROOT)
 
-from agents.production.mcp_tool_builder import MarketMicrostructureEngine, ASTSecurityScanner, SyntheticSchemaVerifier
+from agents.production.mcp_tool_builder import (
+    MarketMicrostructureEngine,
+    ASTSecurityScanner,
+    SyntheticSchemaVerifier,
+    CrossExchangeArbitrageScanner,
+)
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
 from agents.treasury.x402_gateway import X402PaymentGateway
 
@@ -26,6 +32,7 @@ from agents.treasury.x402_gateway import X402PaymentGateway
 micro_engine = MarketMicrostructureEngine()
 security_scanner = ASTSecurityScanner()
 schema_verifier = SyntheticSchemaVerifier()
+arbitrage_scanner = CrossExchangeArbitrageScanner()
 token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
 payment_gw = X402PaymentGateway()
@@ -69,6 +76,27 @@ async def health(request):
     })
 
 
+async def api_catalog(request):
+    """
+    Free discovery endpoint for visiting agents to inspect tools, prices, and token savings.
+    """
+    return JSONResponse({
+        "vendor": "SOUQ Autonomous Commerce Swarm",
+        "protocol": "x402-v1.0",
+        "network": "Base",
+        "currency": "USDC",
+        "recipient_wallet": payment_gw.recipient_wallet,
+        "tools": [
+            {"name": "token_context_compressor", "price_usdc": 0.01, "avg_tokens_saved": 14000},
+            {"name": "ast_structural_slicer", "price_usdc": 0.02, "avg_tokens_saved": 3000},
+            {"name": "quant_microstructure_radar", "price_usdc": 0.02, "avg_tokens_saved": 15000},
+            {"name": "cross_exchange_arbitrage_scanner", "price_usdc": 0.03, "avg_tokens_saved": 12000},
+            {"name": "ast_security_scanner", "price_usdc": 0.03, "avg_tokens_saved": 4000},
+            {"name": "synthetic_schema_verifier", "price_usdc": 0.01, "avg_tokens_saved": 1500}
+        ]
+    })
+
+
 async def api_tool_call(request):
     """
     HTTP REST / JSON-RPC endpoint for client AI agents executing paid tools with x402 headers.
@@ -86,6 +114,7 @@ async def api_tool_call(request):
         "token_context_compressor": 0.01,
         "ast_structural_slicer": 0.02,
         "quant_microstructure_radar": 0.02,
+        "cross_exchange_arbitrage_scanner": 0.03,
         "ast_security_scanner": 0.03,
         "synthetic_schema_verifier": 0.01
     }
@@ -100,7 +129,8 @@ async def api_tool_call(request):
         )
         return JSONResponse(challenge, status_code=402)
 
-    simulate = payment_tx.startswith("0x_simulated_") or payment_tx.startswith("0x_test_")
+    allow_sim = os.getenv("SOUQ_ALLOW_TEST_SIMULATION", "false").lower() == "true"
+    simulate = allow_sim and (payment_tx.startswith("0x_simulated_") or payment_tx.startswith("0x_test_"))
     settled, settlement = payment_gw.verify_payment_and_settle(
         tx_hash=payment_tx,
         expected_price_usdc=price,
@@ -119,8 +149,12 @@ async def api_tool_call(request):
         res = ast_slicer.slice_symbol(body.get("source_code", ""), body.get("target_symbol", ""))
     elif tool_name == "quant_microstructure_radar":
         res = micro_engine.get_microstructure_metrics(body.get("symbol", "BTC/USDT"))
+    elif tool_name == "cross_exchange_arbitrage_scanner":
+        res = arbitrage_scanner.scan_arbitrage_and_funding(body.get("symbol", "BTC/USDT"))
     elif tool_name == "ast_security_scanner":
         res = security_scanner.scan_python_code(body.get("source_code", ""))
+    elif tool_name == "synthetic_schema_verifier":
+        res = schema_verifier.verify_schema_conformity(body.get("data", {}), body.get("schema", {}))
     else:
         res = {"status": "success", "message": f"Tool '{tool_name}' executed."}
 
@@ -134,6 +168,7 @@ routes = [
     Route("/llms.txt", llms_txt),
     Route("/robots.txt", robots_txt),
     Route("/.well-known/mcp.json", well_known_mcp),
+    Route("/api/catalog", api_catalog),
     Route("/api/tools/call", api_tool_call, methods=["POST"]),
 ]
 

@@ -43,6 +43,28 @@ class RaisConductor:
         # 1. Discovery & Opportunity Ranking (Kashif)
         test_opportunities = [
             ProductOpportunity(
+                concept_id="TOKEN_CONTEXT_COMPRESSOR",
+                title="High-Entropy Semantic Token Context Compressor (90% Savings)",
+                target_buyer="A2A_AGENT",
+                demand_intensity=9.8,
+                willingness_to_pay=9.5,
+                supply_saturation=1.8,
+                synthesis_complexity=1.5,
+                legal_risk_score=1.0,
+                suggested_unit_price_usd=0.01
+            ),
+            ProductOpportunity(
+                concept_id="CROSS_EXCHANGE_ARBITRAGE",
+                title="Spot vs. Perp Basis Spread & Funding Rate APR Arbitrage Scanner",
+                target_buyer="A2A_AGENT",
+                demand_intensity=9.7,
+                willingness_to_pay=9.2,
+                supply_saturation=1.9,
+                synthesis_complexity=2.0,
+                legal_risk_score=1.0,
+                suggested_unit_price_usd=0.03
+            ),
+            ProductOpportunity(
                 concept_id="A2A_QUANT_RADAR",
                 title="Live Crypto Order-Book Imbalance & Liquidation Radar",
                 target_buyer="A2A_AGENT",

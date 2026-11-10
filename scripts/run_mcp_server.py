@@ -13,7 +13,12 @@ from typing import Dict, Any, Optional
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from fastmcp import FastMCP
-from agents.production.mcp_tool_builder import MarketMicrostructureEngine, ASTSecurityScanner, SyntheticSchemaVerifier
+from agents.production.mcp_tool_builder import (
+    MarketMicrostructureEngine,
+    ASTSecurityScanner,
+    SyntheticSchemaVerifier,
+    CrossExchangeArbitrageScanner,
+)
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
 from agents.treasury.x402_gateway import X402PaymentGateway
 
@@ -24,9 +29,15 @@ mcp = FastMCP("souq-commerce-server")
 microstructure_engine = MarketMicrostructureEngine()
 security_scanner = ASTSecurityScanner()
 schema_verifier = SyntheticSchemaVerifier()
+arbitrage_scanner = CrossExchangeArbitrageScanner()
 token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
 payment_gateway = X402PaymentGateway()
+
+
+def _is_sim_allowed(tx_hash: str) -> bool:
+    allow_sim = os.getenv("SOUQ_ALLOW_TEST_SIMULATION", "false").lower() == "true"
+    return allow_sim and (tx_hash.startswith("0x_simulated_") or tx_hash.startswith("0x_test_"))
 
 
 @mcp.tool()
@@ -44,29 +55,63 @@ def quant_microstructure_radar(
     tool_name = "quant_microstructure_radar"
 
     if not payment_tx_hash:
-        # Return 402 challenge
         return payment_gateway.generate_402_challenge(
             tool_name=tool_name,
             price_usdc=price_usdc,
             client_agent_id=client_id
         )
 
-    # In production, verifies on-chain; for local execution supports test tags
-    simulate = payment_tx_hash.startswith("0x_simulated_") or payment_tx_hash.startswith("0x_test_")
     settled, settlement_info = payment_gateway.verify_payment_and_settle(
         tx_hash=payment_tx_hash,
         expected_price_usdc=price_usdc,
         tool_name=tool_name,
         payload_data={"symbol": symbol},
         client_agent_id=client_id,
-        simulate_test=simulate
+        simulate_test=_is_sim_allowed(payment_tx_hash)
     )
 
     if not settled:
         return {"error": "Payment Verification Failed", "details": settlement_info}
 
-    # Execute paid calculation
     result = microstructure_engine.get_microstructure_metrics(symbol=symbol)
+    result["settlement_receipt"] = settlement_info
+    return result
+
+
+@mcp.tool()
+def cross_exchange_arbitrage_scanner(
+    symbol: str = "BTC/USDT",
+    payment_tx_hash: Optional[str] = None,
+    client_id: str = "agent-client-default"
+) -> Dict[str, Any]:
+    """
+    Scans Spot vs. Perpetual Futures basis spreads and calculates annualized
+    Delta-Neutral Funding Rate APR across major crypto pairs.
+    Cost: 0.03 USDC on Base. Requires payment_tx_hash.
+    """
+    price_usdc = 0.03
+    tool_name = "cross_exchange_arbitrage_scanner"
+
+    if not payment_tx_hash:
+        return payment_gateway.generate_402_challenge(
+            tool_name=tool_name,
+            price_usdc=price_usdc,
+            client_agent_id=client_id
+        )
+
+    settled, settlement_info = payment_gateway.verify_payment_and_settle(
+        tx_hash=payment_tx_hash,
+        expected_price_usdc=price_usdc,
+        tool_name=tool_name,
+        payload_data={"symbol": symbol},
+        client_agent_id=client_id,
+        simulate_test=_is_sim_allowed(payment_tx_hash)
+    )
+
+    if not settled:
+        return {"error": "Payment Verification Failed", "details": settlement_info}
+
+    result = arbitrage_scanner.scan_arbitrage_and_funding(symbol=symbol)
     result["settlement_receipt"] = settlement_info
     return result
 
@@ -92,14 +137,13 @@ def ast_security_scanner(
             client_agent_id=client_id
         )
 
-    simulate = payment_tx_hash.startswith("0x_simulated_") or payment_tx_hash.startswith("0x_test_")
     settled, settlement_info = payment_gateway.verify_payment_and_settle(
         tx_hash=payment_tx_hash,
         expected_price_usdc=price_usdc,
         tool_name=tool_name,
         payload_data={"code_len": len(source_code)},
         client_agent_id=client_id,
-        simulate_test=simulate
+        simulate_test=_is_sim_allowed(payment_tx_hash)
     )
 
     if not settled:
@@ -131,14 +175,13 @@ def synthetic_schema_verifier(
             client_agent_id=client_id
         )
 
-    simulate = payment_tx_hash.startswith("0x_simulated_") or payment_tx_hash.startswith("0x_test_")
     settled, settlement_info = payment_gateway.verify_payment_and_settle(
         tx_hash=payment_tx_hash,
         expected_price_usdc=price_usdc,
         tool_name=tool_name,
         payload_data={"keys_checked": list(schema.keys())},
         client_agent_id=client_id,
-        simulate_test=simulate
+        simulate_test=_is_sim_allowed(payment_tx_hash)
     )
 
     if not settled:
@@ -170,14 +213,13 @@ def token_context_compressor(
             client_agent_id=client_id
         )
 
-    simulate = payment_tx_hash.startswith("0x_simulated_") or payment_tx_hash.startswith("0x_test_")
     settled, settlement_info = payment_gateway.verify_payment_and_settle(
         tx_hash=payment_tx_hash,
         expected_price_usdc=price_usdc,
         tool_name=tool_name,
         payload_data={"raw_len": len(raw_content)},
         client_agent_id=client_id,
-        simulate_test=simulate
+        simulate_test=_is_sim_allowed(payment_tx_hash)
     )
 
     if not settled:
@@ -210,14 +252,13 @@ def ast_structural_slicer(
             client_agent_id=client_id
         )
 
-    simulate = payment_tx_hash.startswith("0x_simulated_") or payment_tx_hash.startswith("0x_test_")
     settled, settlement_info = payment_gateway.verify_payment_and_settle(
         tx_hash=payment_tx_hash,
         expected_price_usdc=price_usdc,
         tool_name=tool_name,
         payload_data={"target_symbol": target_symbol, "code_len": len(source_code)},
         client_agent_id=client_id,
-        simulate_test=simulate
+        simulate_test=_is_sim_allowed(payment_tx_hash)
     )
 
     if not settled:
@@ -235,4 +276,3 @@ if __name__ == "__main__":
 
     print(f"🚀 Starting SOUQ Paid FastMCP Server on port {args.port}...")
     mcp.run()
-

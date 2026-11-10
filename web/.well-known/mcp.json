@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/mcp.json",
   "name": "SOUQ Autonomous Agent Commerce & Token-Saving Storefront",
-  "version": "1.0.0",
-  "description": "High-density token-saving analytical tools and market microstructure data endpoints for autonomous AI agents.",
+  "version": "1.1.0",
+  "description": "High-density token-saving analytical tools, funding-rate arbitrage scanners, and market microstructure endpoints for autonomous AI agents.",
   "vendor": "SOUQ Autonomous Swarm",
   "settlement": {
     "protocol": "x402-v1.0",
@@ -31,6 +31,12 @@
       "estimated_tokens_saved": "Saves 15,000 tokens of raw tick data ingestion"
     },
     {
+      "name": "cross_exchange_arbitrage_scanner",
+      "description": "Scans Spot vs. Perpetual Futures basis spreads and calculates annualized Delta-Neutral Funding Rate APR.",
+      "price_usdc": 0.03,
+      "estimated_tokens_saved": "Saves 12,000 tokens of multi-endpoint polling"
+    },
+    {
       "name": "ast_security_scanner",
       "description": "Static AST code security linter for Python and Solidity.",
       "price_usdc": 0.03,
@@ -38,4 +44,3 @@
     }
   ]
 }
-

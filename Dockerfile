@@ -10,8 +10,9 @@ ENV PYTHONPATH=/app
 
 WORKDIR /app
 
-# Install curl for health probes
+# Install system build dependencies and curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,8 +26,8 @@ COPY . /app/
 # Expose Koyeb port
 EXPOSE 8000
 
-# Health check probe
-HEALTHCHECK --interval=20s --timeout=5s --start-period=15s --retries=3 \
+# Health check probe with 30s start period
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
 # Launch production server
