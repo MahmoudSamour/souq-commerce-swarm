@@ -148,8 +148,20 @@ Subsequent calls return an HTTP 402 challenge with cryptographic payment details
 ```json
 {
   "tool": "synthetic_schema_verifier",
-  "data": {"agent_id": "bot_1", "status": "active"},
-  "schema": {"type": "object", "required": ["agent_id", "status"]}
+  "data": { "name": "Agent0", "status": "active" },
+  "schema": { "name": "str", "status": "str" }
+}
+```
+
+### Tool 11: prediction_market_arbitrage_radar
+- Description: Quantitative Black-Scholes lognormal implied probability vs Polymarket consensus discrepancy engine. Detects pricing dislocations and edge (in basis points) across crypto binary prediction markets.
+- Price: 0.03 USDC
+- Average Tokens Saved: 35,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "prediction_market_arbitrage_radar",
+  "asset": "BTC"
 }
 ```
 

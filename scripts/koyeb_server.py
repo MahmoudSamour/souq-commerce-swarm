@@ -79,6 +79,7 @@ from agents.production.mcp_tool_builder import (
     CrossExchangeArbitrageScanner,
     OrderBookSlippageSimulator,
     SmartMoneyWhaleRadar,
+    PredictionMarketArbitrageRadar,
 )
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
 from agents.production.dev_intelligence_vault import DevAPICheatSheetVault, DailyTechTrendsRadar
@@ -91,11 +92,93 @@ schema_verifier = SyntheticSchemaVerifier()
 arbitrage_scanner = CrossExchangeArbitrageScanner()
 slippage_simulator = OrderBookSlippageSimulator()
 whale_radar = SmartMoneyWhaleRadar()
+prediction_radar = PredictionMarketArbitrageRadar()
 token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
 dev_vault = DevAPICheatSheetVault()
 trends_radar = DailyTechTrendsRadar()
 payment_gw = X402PaymentGateway()
+
+
+TOOL_ECONOMICS = {
+    "prediction_market_arbitrage_radar": {
+        "price_usdc": 0.03,
+        "avg_tokens_saved": 35000,
+        "est_inference_savings_usd": 0.175,
+        "net_roi_pct": 483,
+        "category": "Prediction Market Arbitrage"
+    },
+    "token_context_compressor": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 14000,
+        "est_inference_savings_usd": 0.070,
+        "net_roi_pct": 600,
+        "category": "Context Optimization"
+    },
+    "ast_structural_slicer": {
+        "price_usdc": 0.02,
+        "avg_tokens_saved": 3000,
+        "est_inference_savings_usd": 0.015,
+        "net_roi_pct": 75,
+        "category": "Code Slicing"
+    },
+    "quant_microstructure_radar": {
+        "price_usdc": 0.02,
+        "avg_tokens_saved": 15000,
+        "est_inference_savings_usd": 0.075,
+        "net_roi_pct": 275,
+        "category": "Alpha & Microstructure"
+    },
+    "cross_exchange_arbitrage_scanner": {
+        "price_usdc": 0.03,
+        "avg_tokens_saved": 12000,
+        "est_inference_savings_usd": 0.060,
+        "net_roi_pct": 100,
+        "category": "Arbitrage & Basis"
+    },
+    "orderbook_slippage_simulator": {
+        "price_usdc": 0.02,
+        "avg_tokens_saved": 15000,
+        "est_inference_savings_usd": 0.075,
+        "net_roi_pct": 275,
+        "category": "Execution Optimization"
+    },
+    "smart_money_whale_flow_radar": {
+        "price_usdc": 0.03,
+        "avg_tokens_saved": 20000,
+        "est_inference_savings_usd": 0.100,
+        "net_roi_pct": 233,
+        "category": "Whale Flow Telemetry"
+    },
+    "dev_api_cheatsheet_vault": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 40000,
+        "est_inference_savings_usd": 0.200,
+        "net_roi_pct": 1900,
+        "category": "API Schema Reference"
+    },
+    "daily_tech_ai_trends_radar": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 25000,
+        "est_inference_savings_usd": 0.125,
+        "net_roi_pct": 1150,
+        "category": "AI Technology Radar"
+    },
+    "ast_security_scanner": {
+        "price_usdc": 0.03,
+        "avg_tokens_saved": 4000,
+        "est_inference_savings_usd": 0.020,
+        "net_roi_pct": 67,
+        "category": "Security Linting"
+    },
+    "synthetic_schema_verifier": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 1500,
+        "est_inference_savings_usd": 0.008,
+        "net_roi_pct": 80,
+        "category": "Schema Conformity"
+    }
+}
 
 
 async def homepage(request):
@@ -168,24 +251,25 @@ async def api_catalog(request):
     """
     Free discovery endpoint for visiting agents to inspect tools, prices, and token savings.
     """
+    tools_list = []
+    for name, data in TOOL_ECONOMICS.items():
+        tools_list.append({
+            "name": name,
+            "category": data["category"],
+            "price_usdc": data["price_usdc"],
+            "avg_tokens_saved": data["avg_tokens_saved"],
+            "est_inference_savings_usd": data["est_inference_savings_usd"],
+            "net_roi_pct": data["net_roi_pct"],
+            "settlement_rail": "Base L2 (USDC)"
+        })
+
     return JSONResponse({
         "vendor": "SOUQ Autonomous Commerce Swarm",
         "protocol": "x402-v1.0",
         "network": "Base",
         "currency": "USDC",
         "recipient_wallet": payment_gw.recipient_wallet,
-        "tools": [
-            {"name": "token_context_compressor", "price_usdc": 0.01, "avg_tokens_saved": 14000},
-            {"name": "ast_structural_slicer", "price_usdc": 0.02, "avg_tokens_saved": 3000},
-            {"name": "quant_microstructure_radar", "price_usdc": 0.02, "avg_tokens_saved": 15000},
-            {"name": "cross_exchange_arbitrage_scanner", "price_usdc": 0.03, "avg_tokens_saved": 12000},
-            {"name": "orderbook_slippage_simulator", "price_usdc": 0.02, "avg_tokens_saved": 15000},
-            {"name": "smart_money_whale_flow_radar", "price_usdc": 0.03, "avg_tokens_saved": 20000},
-            {"name": "dev_api_cheatsheet_vault", "price_usdc": 0.01, "avg_tokens_saved": 40000},
-            {"name": "daily_tech_ai_trends_radar", "price_usdc": 0.01, "avg_tokens_saved": 25000},
-            {"name": "ast_security_scanner", "price_usdc": 0.03, "avg_tokens_saved": 4000},
-            {"name": "synthetic_schema_verifier", "price_usdc": 0.01, "avg_tokens_saved": 1500}
-        ]
+        "tools": tools_list
     })
 
 
@@ -201,21 +285,13 @@ async def api_tool_call(request):
     tool_name = body.get("tool", "")
     payment_tx = request.headers.get("X-Payment-Tx") or body.get("payment_tx_hash")
 
-    # Pricing table
-    prices = {
-        "token_context_compressor": 0.01,
-        "ast_structural_slicer": 0.02,
-        "quant_microstructure_radar": 0.02,
-        "cross_exchange_arbitrage_scanner": 0.03,
-        "orderbook_slippage_simulator": 0.02,
-        "smart_money_whale_flow_radar": 0.03,
-        "dev_api_cheatsheet_vault": 0.01,
-        "daily_tech_ai_trends_radar": 0.01,
-        "ast_security_scanner": 0.03,
-        "synthetic_schema_verifier": 0.01
-    }
-
-    price = prices.get(tool_name, 0.02)
+    eco = TOOL_ECONOMICS.get(tool_name, {
+        "price_usdc": 0.02,
+        "avg_tokens_saved": 10000,
+        "est_inference_savings_usd": 0.05,
+        "net_roi_pct": 150
+    })
+    price = eco["price_usdc"]
     is_free_trial = False
 
     if not payment_tx:
@@ -232,7 +308,12 @@ async def api_tool_call(request):
                 "notice": "1 daily free trial evaluation granted. Subsequent calls require HTTP 402 Base USDC micropayments.",
                 "recipient_wallet": payment_gw.recipient_wallet,
                 "chain": "Base",
-                "currency": "USDC"
+                "currency": "USDC",
+                "economic_arbitrage": {
+                    "tokens_saved": eco["avg_tokens_saved"],
+                    "est_inference_savings_usd": eco["est_inference_savings_usd"],
+                    "net_roi_pct": eco["net_roi_pct"]
+                }
             }
         else:
             challenge = payment_gw.generate_402_challenge(
@@ -240,7 +321,17 @@ async def api_tool_call(request):
                 price_usdc=price,
                 client_agent_id=request.headers.get("User-Agent", "anonymous-agent")
             )
-            return JSONResponse(challenge, status_code=402)
+            challenge_headers = {
+                "X-Souq-Tool": tool_name,
+                "X-Souq-Price-USDC": str(price),
+                "X-Souq-Tokens-Saved": str(eco["avg_tokens_saved"]),
+                "X-Souq-Inference-Savings-USD": f"${eco['est_inference_savings_usd']:.3f}",
+                "X-Souq-Net-ROI": f"{eco['net_roi_pct']}%",
+                "X-Souq-Recipient": payment_gw.recipient_wallet,
+                "X-Souq-Network": "Base",
+                "X-Souq-Token": "USDC"
+            }
+            return JSONResponse(challenge, status_code=402, headers=challenge_headers)
     else:
         allow_sim = os.getenv("SOUQ_ALLOW_TEST_SIMULATION", "false").lower() == "true"
         simulate = allow_sim and (payment_tx.startswith("0x_simulated_") or payment_tx.startswith("0x_test_"))
@@ -283,16 +374,27 @@ async def api_tool_call(request):
         res = security_scanner.scan_python_code(body.get("source_code", ""))
     elif tool_name == "synthetic_schema_verifier":
         res = schema_verifier.verify_schema_conformity(body.get("data", {}), body.get("schema", {}))
+    elif tool_name == "prediction_market_arbitrage_radar":
+        res = prediction_radar.scan_prediction_arbitrage(asset=body.get("asset", body.get("symbol", "BTC")))
     else:
         res = {"status": "success", "message": f"Tool '{tool_name}' executed."}
 
     res["settlement_receipt"] = settlement
-    headers = {}
+    headers = {
+        "X-Souq-Tool": tool_name,
+        "X-Souq-Price-USDC": str(price),
+        "X-Souq-Tokens-Saved": str(eco.get("avg_tokens_saved", 10000)),
+        "X-Souq-Inference-Savings-USD": f"${eco.get('est_inference_savings_usd', 0.05):.3f}",
+        "X-Souq-Net-ROI": f"{eco.get('net_roi_pct', 100)}%",
+        "X-Souq-Recipient": payment_gw.recipient_wallet,
+        "X-Souq-Network": "Base",
+        "X-Souq-Token": "USDC"
+    }
     if is_free_trial:
         headers["X-Souq-Billing"] = "FREE_TRIAL_EVALUATION"
         headers["X-Souq-Next-Call"] = "HTTP_402_PAYMENT_REQUIRED"
-        headers["X-Souq-Price-USDC"] = str(price)
-        headers["X-Souq-Recipient"] = payment_gw.recipient_wallet
+    else:
+        headers["X-Souq-Billing"] = "PAID_SETTLEMENT"
     return JSONResponse(res, headers=headers)
 
 

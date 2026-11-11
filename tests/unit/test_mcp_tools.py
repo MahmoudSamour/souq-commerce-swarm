@@ -6,6 +6,7 @@ from agents.production.mcp_tool_builder import (
     CrossExchangeArbitrageScanner,
     OrderBookSlippageSimulator,
     SmartMoneyWhaleRadar,
+    PredictionMarketArbitrageRadar,
 )
 from agents.production.dev_intelligence_vault import (
     DevAPICheatSheetVault,
@@ -110,6 +111,23 @@ def test_daily_tech_ai_trends_radar():
     assert "hackernews_breakouts" in res
     assert "arxiv_landmark_papers" in res
     assert res["tokens_saved_estimate"] >= 20000
+
+
+def test_prediction_market_arbitrage_radar():
+    radar = PredictionMarketArbitrageRadar()
+    res = radar.scan_prediction_arbitrage("BTC")
+    assert res["status"] == "success"
+    assert res["asset"] == "BTC"
+    assert "benchmark_spot_price" in res
+    assert "market_discrepancies" in res
+    assert len(res["market_discrepancies"]) == 3
+    first = res["market_discrepancies"][0]
+    assert "market_title" in first
+    assert "target_strike_usd" in first
+    assert "spot_implied_prob" in first
+    assert "arbitrage_edge_bps" in first
+    assert "signal" in first
+    assert res["tokens_saved_estimate"] >= 30000
 
 
 

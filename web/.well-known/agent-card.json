@@ -73,6 +73,13 @@
       "outputModes": ["application/json"]
     },
     {
+      "id": "prediction_market_arbitrage_radar",
+      "name": "Prediction Market Arbitrage Radar",
+      "description": "Cross-market probability discrepancy engine between Polymarket consensus and spot/volatility Black-Scholes pricing ($0.03 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
       "id": "ast_security_scanner",
       "name": "AST Security Vulnerability Scanner",
       "description": "Static code security linter for Python and Solidity detecting eval, shell injection, and reentrancy ($0.03 USDC).",

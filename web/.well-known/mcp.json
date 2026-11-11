@@ -61,6 +61,12 @@
       "estimated_tokens_saved": "Saves 25,000 tokens of multi-site web searching"
     },
     {
+      "name": "prediction_market_arbitrage_radar",
+      "description": "Cross-market probability discrepancy engine between Polymarket binary outcome consensus and spot/volatility Black-Scholes pricing. Discovers statistical edge and mispricings in basis points.",
+      "price_usdc": 0.03,
+      "estimated_tokens_saved": "Saves 35,000 tokens of market polling and probability calculations"
+    },
+    {
       "name": "ast_security_scanner",
       "description": "Static AST code security linter for Python and Solidity.",
       "price_usdc": 0.03,

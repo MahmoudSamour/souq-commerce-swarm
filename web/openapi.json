@@ -74,10 +74,12 @@
                       "smart_money_whale_flow_radar",
                       "dev_api_cheatsheet_vault",
                       "daily_tech_ai_trends_radar",
+                      "prediction_market_arbitrage_radar",
                       "ast_security_scanner",
                       "synthetic_schema_verifier"
                     ]
                   },
+                  "asset": { "type": "string", "default": "BTC", "description": "Target crypto asset for prediction arbitrage (BTC, ETH, SOL)" },
                   "raw_content": { "type": "string", "description": "Text/HTML to compress (for token_context_compressor)" },
                   "source_code": { "type": "string", "description": "Source code string (for ast_structural_slicer / ast_security_scanner)" },
                   "target_symbol": { "type": "string", "description": "Target function/class (for ast_structural_slicer)" },

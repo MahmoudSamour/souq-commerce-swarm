@@ -92,9 +92,31 @@ def test_free_trial_evaluation_flow(client):
     assert res.status_code == 200
     assert "cheatsheet" in res.json()
     assert res.headers.get("X-Souq-Billing") == "FREE_TRIAL_EVALUATION"
+    assert res.headers.get("X-Souq-Tokens-Saved") == "40000"
+    assert res.headers.get("X-Souq-Net-ROI") == "1900%"
 
-    # Second consecutive call with no payment must throw HTTP 402 challenge
+    # Second consecutive call with no payment must throw HTTP 402 challenge with economic headers
     res2 = client.post("/api/tools/call", json=payload)
     assert res2.status_code == 402
     assert res2.json()["error"] == "Payment Required"
+    assert res2.headers.get("X-Souq-Price-USDC") == "0.01"
+    assert res2.headers.get("X-Souq-Tokens-Saved") == "40000"
+    assert res2.headers.get("X-Souq-Net-ROI") == "1900%"
+
+
+def test_prediction_market_arbitrage_server_flow(client):
+    # Using a distinct client/IP simulation by passing custom tool call
+    payload = {"tool": "prediction_market_arbitrage_radar", "asset": "BTC"}
+    res = client.post("/api/tools/call", json=payload)
+    # If free trial is already consumed by previous test on testclient IP (127.0.0.1), expect 402 with correct headers
+    if res.status_code == 402:
+        assert res.headers.get("X-Souq-Tool") == "prediction_market_arbitrage_radar"
+        assert res.headers.get("X-Souq-Price-USDC") == "0.03"
+        assert res.headers.get("X-Souq-Tokens-Saved") == "35000"
+        assert res.headers.get("X-Souq-Net-ROI") == "483%"
+    else:
+        assert res.status_code == 200
+        assert "market_discrepancies" in res.json()
+        assert res.headers.get("X-Souq-Tool") == "prediction_market_arbitrage_radar"
+        assert res.headers.get("X-Souq-Tokens-Saved") == "35000"
 
