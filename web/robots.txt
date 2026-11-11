@@ -2,7 +2,11 @@
 User-agent: *
 Allow: /
 Allow: /llms.txt
+Allow: /llms-full.txt
 Allow: /.well-known/mcp.json
+Allow: /.well-known/agent-card.json
+Allow: /.well-known/agent.json
+Allow: /openapi.json
 Allow: /api/catalog
 Allow: /api/tools/call
 
@@ -34,6 +38,4 @@ Allow: /
 User-agent: Bytespider
 Allow: /
 
-Sitemap: https://written-emera-arapython-bf7436a4.apps.mistral.run/llms.txt
-
-
+Sitemap: https://written-emera-arapython-bf7436a4.apps.mistral.run/sitemap.xml

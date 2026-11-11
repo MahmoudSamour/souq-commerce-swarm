@@ -1,0 +1,102 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SOUQ Autonomous Agent Commerce & Token-Saving Swarm",
+    "version": "1.1.0",
+    "description": "High-density analytical micro-services, quantitative microstructure feeds, AST security linters, and context compression tools for autonomous AI agents on Base USDC via HTTP 402.",
+    "contact": {
+      "name": "SOUQ Swarm Operations",
+      "url": "https://written-emera-arapython-bf7436a4.apps.mistral.run"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://written-emera-arapython-bf7436a4.apps.mistral.run",
+      "description": "Production Edge Server (Koyeb Free Tier)"
+    }
+  ],
+  "paths": {
+    "/api/catalog": {
+      "get": {
+        "summary": "Free Discovery Catalog",
+        "description": "Inspect all available tools, prices in USDC on Base, and average prompt tokens saved per invocation.",
+        "responses": {
+          "200": {
+            "description": "Complete tool catalog and payment parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "vendor": { "type": "string" },
+                    "protocol": { "type": "string" },
+                    "network": { "type": "string" },
+                    "currency": { "type": "string" },
+                    "recipient_wallet": { "type": "string" },
+                    "tools": { "type": "array" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tools/call": {
+      "post": {
+        "summary": "Execute Paid Micro-Service Tool",
+        "description": "Calls a paid analytical tool. If X-Payment-Tx header is missing (after 1 free daily trial), returns HTTP 402 Payment Required with Base USDC challenge instructions.",
+        "parameters": [
+          {
+            "name": "X-Payment-Tx",
+            "in": "header",
+            "required": false,
+            "description": "Base L2 transaction hash proving USDC payment to the recipient wallet.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tool"],
+                "properties": {
+                  "tool": {
+                    "type": "string",
+                    "enum": [
+                      "token_context_compressor",
+                      "ast_structural_slicer",
+                      "quant_microstructure_radar",
+                      "cross_exchange_arbitrage_scanner",
+                      "orderbook_slippage_simulator",
+                      "smart_money_whale_flow_radar",
+                      "dev_api_cheatsheet_vault",
+                      "daily_tech_ai_trends_radar",
+                      "ast_security_scanner",
+                      "synthetic_schema_verifier"
+                    ]
+                  },
+                  "raw_content": { "type": "string", "description": "Text/HTML to compress (for token_context_compressor)" },
+                  "source_code": { "type": "string", "description": "Source code string (for ast_structural_slicer / ast_security_scanner)" },
+                  "target_symbol": { "type": "string", "description": "Target function/class (for ast_structural_slicer)" },
+                  "symbol": { "type": "string", "default": "BTC/USDT", "description": "Market pair symbol" },
+                  "side": { "type": "string", "enum": ["BUY", "SELL"], "default": "BUY" },
+                  "trade_size_usd": { "type": "number", "default": 10000.0 },
+                  "block_threshold_usd": { "type": "number", "default": 50000.0 },
+                  "ecosystem": { "type": "string", "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "duckdb"] },
+                  "force_refresh": { "type": "boolean", "default": false }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Tool executed successfully with cryptographically signed settlement receipt." },
+          "402": { "description": "Payment Required - returns recipient address, price in USDC, and payment validity." }
+        }
+      }
+    }
+  }
+}

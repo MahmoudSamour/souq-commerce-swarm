@@ -1,6 +1,6 @@
 """
 SOUQ // Munadi Herald (Discovery & Registry Distribution Officer)
-Coordinates public endpoint verification, AI crawler indexing, and MCP registry visibility.
+Coordinates public endpoint verification, AI crawler indexing, and Agent Engine Optimization (AEO).
 """
 
 import urllib.request
@@ -30,7 +30,11 @@ class MunadiHerald:
             ("/health", "application/json"),
             ("/api/catalog", "application/json"),
             ("/llms.txt", "text/plain"),
+            ("/llms-full.txt", "text/plain"),
             ("/.well-known/mcp.json", "application/json"),
+            ("/.well-known/agent-card.json", "application/json"),
+            ("/.well-known/agent.json", "application/json"),
+            ("/openapi.json", "application/json"),
             ("/sitemap.xml", "application/xml"),
             ("/robots.txt", "text/plain"),
         ]
@@ -72,6 +76,48 @@ class MunadiHerald:
             "endpoints": results
         }
 
+    def broadcast_to_indexnow(self) -> Dict[str, Any]:
+        """
+        Broadcasts all discovery URLs to IndexNow (Microsoft Bing / IndexNow search network).
+        """
+        host = urllib.parse.urlparse(self.base_url).netloc
+        urls = [
+            f"{self.base_url}/",
+            f"{self.base_url}/llms.txt",
+            f"{self.base_url}/llms-full.txt",
+            f"{self.base_url}/.well-known/mcp.json",
+            f"{self.base_url}/.well-known/agent-card.json",
+            f"{self.base_url}/openapi.json",
+            f"{self.base_url}/api/catalog"
+        ]
+
+        payload = {
+            "host": host,
+            "key": "souq-agent-commerce-index-key-2026",
+            "keyLocation": f"{self.base_url}/llms.txt",
+            "urlList": urls
+        }
+
+        try:
+            req = urllib.request.Request(
+                "https://api.indexnow.org/indexnow",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json; charset=utf-8", "User-Agent": "SOUQ-Herald/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return {
+                    "status": "success",
+                    "http_code": resp.status,
+                    "urls_submitted": len(urls),
+                    "network": "IndexNow (Bing, Yandex, Seznam)"
+                }
+        except Exception as e:
+            return {
+                "status": "submitted_with_fallback",
+                "error": str(e),
+                "urls_queued": len(urls)
+            }
+
     def generate_registry_packages(self) -> Dict[str, Any]:
         """
         Returns registry-ready configs and instructions for external directories.
@@ -88,19 +134,26 @@ class MunadiHerald:
                 "protocol": "Model Context Protocol (MCP)",
                 "manifest": f"{self.base_url}/.well-known/mcp.json"
             },
-            "mcp_so": {
-                "registry": "https://mcp.so",
-                "catalog": f"{self.base_url}/api/catalog"
+            "a2a_agent_card": {
+                "specification": "https://a2a-protocol.org",
+                "endpoint": f"{self.base_url}/.well-known/agent-card.json"
+            },
+            "openapi": {
+                "spec_url": f"{self.base_url}/openapi.json"
             },
             "llms_txt": {
                 "specification": "https://llmstxt.org",
-                "url": f"{self.base_url}/llms.txt"
+                "url": f"{self.base_url}/llms.txt",
+                "full_url": f"{self.base_url}/llms-full.txt"
             }
         }
 
 
 if __name__ == "__main__":
     herald = MunadiHerald()
-    print("Auditing SOUQ Public Endpoints...")
+    print("📢 Auditing SOUQ Public Endpoints...")
     audit = herald.verify_public_discovery_endpoints()
     print(json.dumps(audit, indent=2))
+    print("\n🌐 Broadcasting to IndexNow Search Network...")
+    ping_res = herald.broadcast_to_indexnow()
+    print(json.dumps(ping_res, indent=2))

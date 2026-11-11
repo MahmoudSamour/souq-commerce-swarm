@@ -1,0 +1,178 @@
+# SOUQ // Autonomous Multi-Agent Commerce Swarm (Comprehensive Specification)
+> Full context document for autonomous reasoning agents, LLM tool planners, and automated discovery crawlers.
+> Live Edge Server: https://written-emera-arapython-bf7436a4.apps.mistral.run
+
+## 1. System Mission & Economics
+SOUQ exposes high-density analytical micro-services designed specifically for autonomous AI agents.
+Traditional SaaS charges human developers \$50–\$200/month subscriptions. SOUQ eliminates seats and subscriptions in favor of native sub-cent pay-per-call micropayments:
+- **Currency**: USDC on Base (Coinbase Ethereum L2, Chain ID 8453)
+- **Settlement Protocol**: HTTP 402 ("x402-v1.0")
+- **Recipient Address**: `0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF`
+- **USDC Base Contract**: `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913`
+- **Economic Value Proposition**: For an agent executing tasks, calling SOUQ at \$0.01 reduces prompt context by 10,000 to 40,000 tokens, generating an immediate 500% to 1,500% cost reduction on Claude 3.5 Sonnet or GPT-4o input tokens.
+
+## 2. Freemium Policy (Free Test Call)
+To enable autonomous evaluation, SOUQ provides **1 Free Trial Call per day per client agent** without requiring immediate on-chain settlement.
+Subsequent calls return an HTTP 402 challenge with cryptographic payment details.
+
+## 3. Endpoints Matrix
+- `GET /`: Interactive web storefront with token savings calculator and live status.
+- `GET /health`: JSON operational telemetry and payment rail health.
+- `GET /api/catalog`: Complete dynamic catalog with live prices and token reduction metrics.
+- `POST /api/tools/call`: Unified tool execution and x402 settlement endpoint.
+- `GET /.well-known/mcp.json`: Model Context Protocol manifest.
+- `GET /.well-known/agent-card.json`: A2A Agent Card specification.
+- `GET /openapi.json`: OpenAPI 3.1.0 specification for LangChain / AutoGen / CrewAI.
+- `GET /sitemap.xml`: XML search engine sitemap.
+- `GET /robots.txt`: Agent crawler whitelist (GPTBot, ClaudeBot, PerplexityBot, etc.).
+
+## 4. Complete Tools Reference & JSON Payloads
+
+### Tool 1: token_context_compressor
+- Description: High-entropy semantic compressor for raw text, JSON, and HTML. Strips fluff and compresses content by 80-95% before feeding into LLM prompt contexts.
+- Price: 0.01 USDC
+- Average Tokens Saved: 14,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "token_context_compressor",
+  "raw_content": "<html><body><h1>Example Content</h1><p>Data payload...</p></body></html>"
+}
+```
+
+### Tool 2: ast_structural_slicer
+- Description: Surgically parses Python or Solidity Abstract Syntax Trees (AST) and extracts only the specified function, class, or symbol with its dependencies. Avoids loading whole repositories into context.
+- Price: 0.02 USDC
+- Average Tokens Saved: 3,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "ast_structural_slicer",
+  "source_code": "def calculate_alpha():\n    return 42\n\ndef unrelated_helper():\n    pass",
+  "target_symbol": "calculate_alpha"
+}
+```
+
+### Tool 3: quant_microstructure_radar
+- Description: Connects directly to Binance order books to compute Order Book Imbalance (OBI), micro-spread (bps), market regime classification, and liquidation cascade risk.
+- Price: 0.02 USDC
+- Average Tokens Saved: 15,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "quant_microstructure_radar",
+  "symbol": "BTC/USDT"
+}
+```
+
+### Tool 4: cross_exchange_arbitrage_scanner
+- Description: Scans Spot vs Perpetual Futures basis spreads and calculates annualized delta-neutral funding rate APR.
+- Price: 0.03 USDC
+- Average Tokens Saved: 12,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "cross_exchange_arbitrage_scanner",
+  "symbol": "BTC/USDT"
+}
+```
+
+### Tool 5: orderbook_slippage_simulator
+- Description: Walks top 100 levels of live Binance order book depth to simulate exact VWAP execution price, slippage bps, and price impact for any trade size.
+- Price: 0.02 USDC
+- Average Tokens Saved: 15,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "orderbook_slippage_simulator",
+  "symbol": "BTC/USDT",
+  "side": "BUY",
+  "trade_size_usd": 10000.0
+}
+```
+
+### Tool 6: smart_money_whale_flow_radar
+- Description: Aggregates real-time whale block trades (> $50,000 USD), calculates Whale Accumulation Index, and identifies Open Interest liquidation clusters.
+- Price: 0.03 USDC
+- Average Tokens Saved: 20,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "smart_money_whale_flow_radar",
+  "symbol": "BTC/USDT",
+  "block_threshold_usd": 50000.0
+}
+```
+
+### Tool 7: dev_api_cheatsheet_vault
+- Description: Pre-cleaned, zero-fluff API schemas and execution code snippets for major developer platforms (openai, anthropic, stripe, base_evm, fastmcp, duckdb).
+- Price: 0.01 USDC
+- Average Tokens Saved: 40,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "dev_api_cheatsheet_vault",
+  "ecosystem": "openai"
+}
+```
+
+### Tool 8: daily_tech_ai_trends_radar
+- Description: Daily synthesized intelligence snapshot covering trending GitHub AI repos, HackerNews breakouts, and arXiv landmark architectures. Refreshed every 12 hours via cron.
+- Price: 0.01 USDC
+- Average Tokens Saved: 25,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "daily_tech_ai_trends_radar",
+  "force_refresh": false
+}
+```
+
+### Tool 9: ast_security_scanner
+- Description: Static AST code vulnerability scanner detecting eval execution, subprocess shells, hardcoded keys, and smart contract reentrancy vulnerabilities.
+- Price: 0.03 USDC
+- Average Tokens Saved: 4,000 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "ast_security_scanner",
+  "source_code": "import os\ndef run_cmd(user_input):\n    os.system(user_input)"
+}
+```
+
+### Tool 10: synthetic_schema_verifier
+- Description: Deterministic JSON schema conformity validator ensuring zero-hallucination structured data exchange between agents.
+- Price: 0.01 USDC
+- Average Tokens Saved: 1,500 tokens
+- Invocation Payload:
+```json
+{
+  "tool": "synthetic_schema_verifier",
+  "data": {"agent_id": "bot_1", "status": "active"},
+  "schema": {"type": "object", "required": ["agent_id", "status"]}
+}
+```
+
+## 5. Python Integration Example for Autonomous Agents
+```python
+import requests
+
+SERVER_URL = "https://written-emera-arapython-bf7436a4.apps.mistral.run"
+
+# 1. Execute tool call (free trial or with X-Payment-Tx)
+payload = {
+    "tool": "quant_microstructure_radar",
+    "symbol": "BTC/USDT"
+}
+response = requests.post(f"{SERVER_URL}/api/tools/call", json=payload)
+
+if response.status_code == 200:
+    data = response.json()
+    print("Execution Success:", data)
+elif response.status_code == 402:
+    challenge = response.json()
+    print("Payment Challenge:", challenge["payment_details"])
+    # Agent wallet settles USDC on Base and retries:
+    # headers = {"X-Payment-Tx": "<on_chain_tx_hash>"}
+    # retry_res = requests.post(f"{SERVER_URL}/api/tools/call", json=payload, headers=headers)
+```

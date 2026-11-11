@@ -30,6 +30,8 @@ RATE_LIMIT_PER_MINUTE = int(os.getenv("SOUQ_RATE_LIMIT_PER_MINUTE", "120"))
 
 # In-memory sliding window rate-limiter per IP
 _ip_request_history = {}
+# In-memory free trial history per IP (1 free call per 24h for agent evaluation)
+_ip_free_trial_history = {}
 
 
 class SecurityHeadersAndProtectionMiddleware(BaseHTTPMiddleware):
@@ -117,6 +119,27 @@ async def llms_txt(request):
     return HTMLResponse("# SOUQ Agent Commerce\n", media_type="text/plain")
 
 
+async def llms_full_txt(request):
+    txt_path = os.path.join(PROJECT_ROOT, "web", "llms-full.txt")
+    if os.path.exists(txt_path):
+        return FileResponse(txt_path, media_type="text/plain")
+    return HTMLResponse("# SOUQ Full Specification\n", media_type="text/plain")
+
+
+async def openapi_spec(request):
+    spec_path = os.path.join(PROJECT_ROOT, "web", "openapi.json")
+    if os.path.exists(spec_path):
+        return FileResponse(spec_path, media_type="application/json")
+    return JSONResponse({"openapi": "3.1.0", "info": {"title": "SOUQ"}})
+
+
+async def agent_card(request):
+    card_path = os.path.join(PROJECT_ROOT, "web", ".well-known", "agent-card.json")
+    if os.path.exists(card_path):
+        return FileResponse(card_path, media_type="application/json")
+    return JSONResponse({"name": "SOUQ Autonomous Commerce Swarm"})
+
+
 async def robots_txt(request):
     robots_path = os.path.join(PROJECT_ROOT, "web", "robots.txt")
     if os.path.exists(robots_path):
@@ -193,27 +216,44 @@ async def api_tool_call(request):
     }
 
     price = prices.get(tool_name, 0.02)
+    is_free_trial = False
 
     if not payment_tx:
-        challenge = payment_gw.generate_402_challenge(
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        last_trial = _ip_free_trial_history.get(client_ip, 0)
+        enable_free_trial = os.getenv("SOUQ_ENABLE_FREE_TRIAL", "true").lower() == "true"
+
+        if enable_free_trial and (now - last_trial >= 86400):
+            is_free_trial = True
+            _ip_free_trial_history[client_ip] = now
+            settlement = {
+                "status": "FREE_TRIAL_GRANTED",
+                "notice": "1 daily free trial evaluation granted. Subsequent calls require HTTP 402 Base USDC micropayments.",
+                "recipient_wallet": payment_gw.recipient_wallet,
+                "chain": "Base",
+                "currency": "USDC"
+            }
+        else:
+            challenge = payment_gw.generate_402_challenge(
+                tool_name=tool_name,
+                price_usdc=price,
+                client_agent_id=request.headers.get("User-Agent", "anonymous-agent")
+            )
+            return JSONResponse(challenge, status_code=402)
+    else:
+        allow_sim = os.getenv("SOUQ_ALLOW_TEST_SIMULATION", "false").lower() == "true"
+        simulate = allow_sim and (payment_tx.startswith("0x_simulated_") or payment_tx.startswith("0x_test_"))
+        settled, settlement = payment_gw.verify_payment_and_settle(
+            tx_hash=payment_tx,
+            expected_price_usdc=price,
             tool_name=tool_name,
-            price_usdc=price,
-            client_agent_id=request.headers.get("User-Agent", "anonymous-agent")
+            payload_data=body,
+            simulate_test=simulate
         )
-        return JSONResponse(challenge, status_code=402)
 
-    allow_sim = os.getenv("SOUQ_ALLOW_TEST_SIMULATION", "false").lower() == "true"
-    simulate = allow_sim and (payment_tx.startswith("0x_simulated_") or payment_tx.startswith("0x_test_"))
-    settled, settlement = payment_gw.verify_payment_and_settle(
-        tx_hash=payment_tx,
-        expected_price_usdc=price,
-        tool_name=tool_name,
-        payload_data=body,
-        simulate_test=simulate
-    )
-
-    if not settled:
-        return JSONResponse({"error": "Payment Verification Failed", "details": settlement}, status_code=400)
+        if not settled:
+            return JSONResponse({"error": "Payment Verification Failed", "details": settlement}, status_code=400)
 
     # Execute tool logic
     if tool_name == "token_context_compressor":
@@ -247,16 +287,26 @@ async def api_tool_call(request):
         res = {"status": "success", "message": f"Tool '{tool_name}' executed."}
 
     res["settlement_receipt"] = settlement
-    return JSONResponse(res)
+    headers = {}
+    if is_free_trial:
+        headers["X-Souq-Billing"] = "FREE_TRIAL_EVALUATION"
+        headers["X-Souq-Next-Call"] = "HTTP_402_PAYMENT_REQUIRED"
+        headers["X-Souq-Price-USDC"] = str(price)
+        headers["X-Souq-Recipient"] = payment_gw.recipient_wallet
+    return JSONResponse(res, headers=headers)
 
 
 routes = [
     Route("/", homepage),
     Route("/health", health),
     Route("/llms.txt", llms_txt),
+    Route("/llms-full.txt", llms_full_txt),
     Route("/robots.txt", robots_txt),
     Route("/sitemap.xml", sitemap_xml),
+    Route("/openapi.json", openapi_spec),
     Route("/.well-known/mcp.json", well_known_mcp),
+    Route("/.well-known/agent-card.json", agent_card),
+    Route("/.well-known/agent.json", agent_card),
     Route("/api/catalog", api_catalog),
     Route("/api/tools/call", api_tool_call, methods=["POST"]),
 ]

@@ -1,0 +1,99 @@
+{
+  "$schema": "https://a2a-protocol.org/schemas/agent-card.json",
+  "name": "SOUQ Autonomous Commerce Swarm",
+  "description": "Autonomous multi-agent micro-service provider offering sub-cent algorithmic tools on Base USDC: 90% token compression, Binance microstructure feeds, funding rate arbitrage, AST security linters, and developer intelligence.",
+  "url": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call",
+  "version": "1.1.0",
+  "provider": {
+    "organization": "SOUQ Commerce Swarm",
+    "url": "https://written-emera-arapython-bf7436a4.apps.mistral.run"
+  },
+  "capabilities": {
+    "streaming": false,
+    "push_notifications": false,
+    "free_trial": true
+  },
+  "defaultInputModes": ["application/json"],
+  "defaultOutputModes": ["application/json"],
+  "skills": [
+    {
+      "id": "token_context_compressor",
+      "name": "Token Context Compressor",
+      "description": "Slashes LLM prompt context bloat by 80-95% to save prompt tokens ($0.01 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "ast_structural_slicer",
+      "name": "AST Structural Code Slicer",
+      "description": "Extracts isolated function/class AST nodes from code without reading whole files ($0.02 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "quant_microstructure_radar",
+      "name": "Quant Market Microstructure Radar",
+      "description": "Computes Order Book Imbalance (OBI), micro-spread, and liquidation cascade risk from Binance ($0.02 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "cross_exchange_arbitrage_scanner",
+      "name": "Cross-Exchange Arbitrage & Funding Scanner",
+      "description": "Calculates Spot vs Perp basis spreads and annualized delta-neutral funding APR ($0.03 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "orderbook_slippage_simulator",
+      "name": "Order Book Slippage Simulator",
+      "description": "Simulates VWAP execution price, slippage bps, and price impact on top 100 levels ($0.02 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "smart_money_whale_flow_radar",
+      "name": "Smart Money Whale Flow Radar",
+      "description": "Detects institutional whale block flow (> $50k) and whale accumulation telemetry ($0.03 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "dev_api_cheatsheet_vault",
+      "name": "Developer API Cheat Sheet Vault",
+      "description": "Clean, compressed API schemas and snippets for major developer platforms ($0.01 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "daily_tech_ai_trends_radar",
+      "name": "Daily AI & Tech Trends Radar",
+      "description": "Daily synthesized intelligence snapshot of GitHub AI repos, HackerNews, and arXiv papers ($0.01 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "ast_security_scanner",
+      "name": "AST Security Vulnerability Scanner",
+      "description": "Static code security linter for Python and Solidity detecting eval, shell injection, and reentrancy ($0.03 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "synthetic_schema_verifier",
+      "name": "Synthetic Schema Verifier",
+      "description": "Validates JSON objects against schema constraints with zero hallucinations ($0.01 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    }
+  ],
+  "securitySchemes": {
+    "x402": {
+      "type": "http_402",
+      "description": "Native HTTP 402 Payment Required standard. Settle in USDC on Base (Chain ID 8453) to recipient address 0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF. Provide transaction hash in header X-Payment-Tx.",
+      "token": "USDC",
+      "network": "Base",
+      "recipient": "0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF"
+    }
+  }
+}
