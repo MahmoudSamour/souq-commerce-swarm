@@ -83,6 +83,13 @@ from agents.production.mcp_tool_builder import (
 )
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
 from agents.production.dev_intelligence_vault import DevAPICheatSheetVault, DailyTechTrendsRadar
+from agents.production.cyber_defense_vault import (
+    PromptInjectionFirewall,
+    SmartContractHoneypotRadar,
+    SecretLeakScanner,
+    DeepASTVulnerabilityAuditor,
+    APIAttackSurfaceScanner,
+)
 from agents.treasury.x402_gateway import X402PaymentGateway
 
 # Initialize Engines
@@ -97,6 +104,11 @@ token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
 dev_vault = DevAPICheatSheetVault()
 trends_radar = DailyTechTrendsRadar()
+prompt_firewall = PromptInjectionFirewall()
+honeypot_radar = SmartContractHoneypotRadar()
+secret_scanner = SecretLeakScanner()
+deep_ast_auditor = DeepASTVulnerabilityAuditor()
+api_surface_scanner = APIAttackSurfaceScanner()
 payment_gw = X402PaymentGateway()
 
 
@@ -177,6 +189,41 @@ TOOL_ECONOMICS = {
         "est_inference_savings_usd": 0.008,
         "net_roi_pct": 80,
         "category": "Schema Conformity"
+    },
+    "prompt_injection_firewall": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 10000,
+        "est_inference_savings_usd": 0.050,
+        "net_roi_pct": 400,
+        "category": "Adversarial Prompt Defense"
+    },
+    "smart_contract_honeypot_radar": {
+        "price_usdc": 0.03,
+        "avg_tokens_saved": 25000,
+        "est_inference_savings_usd": 0.125,
+        "net_roi_pct": 316,
+        "category": "Smart Contract & Token Security"
+    },
+    "secret_leak_scanner": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 15000,
+        "est_inference_savings_usd": 0.075,
+        "net_roi_pct": 650,
+        "category": "Credential & Key Leak Prevention"
+    },
+    "deep_ast_vulnerability_auditor": {
+        "price_usdc": 0.03,
+        "avg_tokens_saved": 15000,
+        "est_inference_savings_usd": 0.075,
+        "net_roi_pct": 150,
+        "category": "Static AST Code Security"
+    },
+    "api_attack_surface_scanner": {
+        "price_usdc": 0.02,
+        "avg_tokens_saved": 12000,
+        "est_inference_savings_usd": 0.060,
+        "net_roi_pct": 200,
+        "category": "API Attack Surface & Defense Headers"
     }
 }
 
@@ -376,6 +423,28 @@ async def api_tool_call(request):
         res = schema_verifier.verify_schema_conformity(body.get("data", {}), body.get("schema", {}))
     elif tool_name == "prediction_market_arbitrage_radar":
         res = prediction_radar.scan_prediction_arbitrage(asset=body.get("asset", body.get("symbol", "BTC")))
+    elif tool_name == "prompt_injection_firewall":
+        res = prompt_firewall.scan_prompt(
+            text=body.get("text", body.get("prompt", "")),
+            strict_mode=bool(body.get("strict_mode", False))
+        )
+    elif tool_name == "smart_contract_honeypot_radar":
+        res = honeypot_radar.audit_contract_code(
+            source_code=body.get("source_code", ""),
+            token_symbol=body.get("token_symbol", body.get("symbol", "TKN"))
+        )
+    elif tool_name == "secret_leak_scanner":
+        res = secret_scanner.scan_for_secrets(
+            content=body.get("content", body.get("source_code", body.get("text", ""))),
+            entropy_threshold=float(body.get("entropy_threshold", 4.2))
+        )
+    elif tool_name == "deep_ast_vulnerability_auditor":
+        res = deep_ast_auditor.scan_code(body.get("source_code", ""))
+    elif tool_name == "api_attack_surface_scanner":
+        res = api_surface_scanner.audit_url(
+            target_url=body.get("target_url", body.get("url", "https://written-emera-arapython-bf7436a4.apps.mistral.run")),
+            headers_to_check=body.get("headers_to_check")
+        )
     else:
         res = {"status": "success", "message": f"Tool '{tool_name}' executed."}
 

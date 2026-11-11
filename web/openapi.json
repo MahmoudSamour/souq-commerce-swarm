@@ -76,9 +76,19 @@
                       "daily_tech_ai_trends_radar",
                       "prediction_market_arbitrage_radar",
                       "ast_security_scanner",
-                      "synthetic_schema_verifier"
+                      "synthetic_schema_verifier",
+                      "prompt_injection_firewall",
+                      "smart_contract_honeypot_radar",
+                      "secret_leak_scanner",
+                      "deep_ast_vulnerability_auditor",
+                      "api_attack_surface_scanner"
                     ]
                   },
+                  "text": { "type": "string", "description": "Text to evaluate for prompt injection (for prompt_injection_firewall)" },
+                  "content": { "type": "string", "description": "File or memory content to scan for secret leaks (for secret_leak_scanner)" },
+                  "target_url": { "type": "string", "description": "Target HTTP endpoint URL to audit (for api_attack_surface_scanner)" },
+                  "strict_mode": { "type": "boolean", "default": false, "description": "Strict detection threshold (for prompt_injection_firewall)" },
+                  "token_symbol": { "type": "string", "default": "TKN", "description": "Token symbol (for smart_contract_honeypot_radar)" },
                   "asset": { "type": "string", "default": "BTC", "description": "Target crypto asset for prediction arbitrage (BTC, ETH, SOL)" },
                   "raw_content": { "type": "string", "description": "Text/HTML to compress (for token_context_compressor)" },
                   "source_code": { "type": "string", "description": "Source code string (for ast_structural_slicer / ast_security_scanner)" },

@@ -16,11 +16,14 @@ def test_client_initialization():
 
 
 def test_mcp_metadata_completeness():
-    assert len(TOOLS_METADATA) == 11
+    assert len(TOOLS_METADATA) == 16
     tool_names = [t["name"] for t in TOOLS_METADATA]
     assert "prediction_market_arbitrage_radar" in tool_names
     assert "token_context_compressor" in tool_names
     assert "quant_microstructure_radar" in tool_names
+    assert "prompt_injection_firewall" in tool_names
+    assert "smart_contract_honeypot_radar" in tool_names
+    assert "secret_leak_scanner" in tool_names
 
 
 def test_mcp_server_initialize_rpc():
@@ -47,4 +50,4 @@ def test_mcp_server_tools_list_rpc():
     }
     resp = server.handle_message(list_msg)
     assert resp["id"] == 2
-    assert len(resp["result"]["tools"]) == 11
+    assert len(resp["result"]["tools"]) == 16

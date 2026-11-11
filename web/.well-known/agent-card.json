@@ -92,6 +92,41 @@
       "description": "Validates JSON objects against schema constraints with zero hallucinations ($0.01 USDC).",
       "inputModes": ["application/json"],
       "outputModes": ["application/json"]
+    },
+    {
+      "id": "prompt_injection_firewall",
+      "name": "Prompt Injection & Jailbreak Firewall",
+      "description": "Detects adversarial prompt injections, DAN jailbreaks, system prompt exfiltration, and delimiter hijacking ($0.01 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "smart_contract_honeypot_radar",
+      "name": "Smart Contract Honeypot Radar",
+      "description": "Audits Solidity contracts for 99% sell taxes, transfer blacklists, reentrancy traps, and hidden mints ($0.03 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "secret_leak_scanner",
+      "name": "Secret & Private Key Leak Scanner",
+      "description": "High-entropy credential scanner detecting leaked AWS, OpenAI, Anthropic, and Base private keys ($0.01 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "deep_ast_vulnerability_auditor",
+      "name": "Deep AST Vulnerability Auditor",
+      "description": "Detects SQL injection, insecure deserialization, SSRF, and command injection in Python code ($0.03 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
+    },
+    {
+      "id": "api_attack_surface_scanner",
+      "name": "API Attack Surface & Defense Header Linter",
+      "description": "Audits endpoints for missing CSP, HSTS, frame options, and wildcard CORS vulnerabilities ($0.02 USDC).",
+      "inputModes": ["application/json"],
+      "outputModes": ["application/json"]
     }
   ],
   "securitySchemes": {

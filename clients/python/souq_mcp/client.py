@@ -196,3 +196,23 @@ class SouqClient:
     def verify_schema(self, data: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, Any]:
         """Validates JSON objects against standard schema constraints with zero hallucinations."""
         return self.call_tool("synthetic_schema_verifier", data=data, schema=schema)
+
+    def prompt_firewall(self, text: str, strict_mode: bool = False) -> Dict[str, Any]:
+        """Adversarial prompt injection, jailbreak, and system prompt exfiltration detector."""
+        return self.call_tool("prompt_injection_firewall", text=text, strict_mode=strict_mode)
+
+    def honeypot_radar(self, source_code: str, token_symbol: str = "TKN") -> Dict[str, Any]:
+        """Solidity honeypot and vulnerability radar detecting 99% sell taxes, blacklists, and reentrancy."""
+        return self.call_tool("smart_contract_honeypot_radar", source_code=source_code, token_symbol=token_symbol)
+
+    def secret_scan(self, content: str, entropy_threshold: float = 4.2) -> Dict[str, Any]:
+        """High-entropy secret, API key, and crypto private key leak scanner."""
+        return self.call_tool("secret_leak_scanner", content=content, entropy_threshold=entropy_threshold)
+
+    def deep_ast_audit(self, source_code: str) -> Dict[str, Any]:
+        """Deep AST vulnerability auditor for Python detecting SQLi, insecure deserialization, and RCE."""
+        return self.call_tool("deep_ast_vulnerability_auditor", source_code=source_code)
+
+    def api_attack_surface(self, target_url: str, headers_to_check: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+        """API attack surface and defensive security header scanner."""
+        return self.call_tool("api_attack_surface_scanner", target_url=target_url, headers_to_check=headers_to_check)

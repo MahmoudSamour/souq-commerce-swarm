@@ -77,6 +77,36 @@
       "description": "Validates JSON objects against standard schema constraints with zero hallucinations.",
       "price_usdc": 0.01,
       "estimated_tokens_saved": "Saves 1,500 validation tokens"
+    },
+    {
+      "name": "prompt_injection_firewall",
+      "description": "Deterministic adversarial prompt injection and jailbreak detector. Protects agent LLMs from instruction overrides, system prompt exfiltration, and delimiter hijacking.",
+      "price_usdc": 0.01,
+      "estimated_tokens_saved": "Saves 10,000 prompt safety tokens"
+    },
+    {
+      "name": "smart_contract_honeypot_radar",
+      "description": "Solidity source & bytecode honeypot and vulnerability radar. Detects 99% sell taxes, transfer blacklists, reentrancy traps, and hidden owner mint backdoors.",
+      "price_usdc": 0.03,
+      "estimated_tokens_saved": "Saves 25,000 auditing tokens"
+    },
+    {
+      "name": "secret_leak_scanner",
+      "description": "High-entropy secret, API key, and crypto private key scanner. Prevents accidental leakage of AWS, OpenAI, Anthropic, and Base private keys.",
+      "price_usdc": 0.01,
+      "estimated_tokens_saved": "Saves 15,000 regex scanning tokens"
+    },
+    {
+      "name": "deep_ast_vulnerability_auditor",
+      "description": "Deep Abstract Syntax Tree (AST) code vulnerability auditor for Python. Detects SQL injection, insecure deserialization, SSRF, path traversal, and dangerous execution.",
+      "price_usdc": 0.03,
+      "estimated_tokens_saved": "Saves 15,000 static analysis tokens"
+    },
+    {
+      "name": "api_attack_surface_scanner",
+      "description": "API attack surface and defensive security header linter. Audits HTTP endpoints for missing CSP, HSTS, frame options, and wildcard CORS risks.",
+      "price_usdc": 0.02,
+      "estimated_tokens_saved": "Saves 12,000 recon tokens"
     }
   ]
 }

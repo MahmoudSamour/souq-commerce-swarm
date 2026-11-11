@@ -120,6 +120,48 @@ class MarketResearchAgent:
                     "fastmcp duckdb api cheat sheet"
                 ],
                 growth_driver="Agents hallucinate API syntax; compressed reference schemas eliminate documentation scraping."
+            ),
+            AgentDemandSignal(
+                category="CYBER_PROMPT_FIREWALL",
+                target_tool="prompt_injection_firewall",
+                search_volume_score=9.9,
+                willingness_to_pay_usdc=0.01,
+                competitive_density="LOW",
+                key_intent_queries=[
+                    "prompt injection firewall api",
+                    "prevent system prompt leak agent",
+                    "ai agent jailbreak defense mcp",
+                    "dan mode injection filter"
+                ],
+                growth_driver="Explosion in public-facing autonomous agents requiring pre-execution injection defenses."
+            ),
+            AgentDemandSignal(
+                category="CYBER_SMART_CONTRACT",
+                target_tool="smart_contract_honeypot_radar",
+                search_volume_score=9.8,
+                willingness_to_pay_usdc=0.03,
+                competitive_density="LOW",
+                key_intent_queries=[
+                    "solidity honeypot detector api",
+                    "evm reentrancy tax trap scanner",
+                    "base memecoin honeypot audit bot",
+                    "check token sell tax mcp"
+                ],
+                growth_driver="Web3 trading bots risking immediate capital loss on fraudulent token contracts."
+            ),
+            AgentDemandSignal(
+                category="CYBER_SECRET_SCANNER",
+                target_tool="secret_leak_scanner",
+                search_volume_score=9.6,
+                willingness_to_pay_usdc=0.01,
+                competitive_density="LOW",
+                key_intent_queries=[
+                    "high entropy secret scanner api",
+                    "detect openai private key leak",
+                    "prevent api key leak in git prompt",
+                    "secret leak scanner mcp"
+                ],
+                growth_driver="Developer and coding agents generating pull requests needing pre-flight secret audits."
             )
         ]
 

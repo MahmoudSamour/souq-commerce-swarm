@@ -125,6 +125,63 @@ TOOLS_METADATA = [
             },
             "required": ["data", "schema"]
         }
+    },
+    {
+        "name": "prompt_injection_firewall",
+        "description": "Adversarial prompt injection, DAN jailbreak, and system prompt exfiltration detector ($0.01 USDC).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Input text or prompt to analyze"},
+                "strict_mode": {"type": "boolean", "default": False}
+            },
+            "required": ["text"]
+        }
+    },
+    {
+        "name": "smart_contract_honeypot_radar",
+        "description": "Audits Solidity contracts for 99% sell taxes, transfer blacklists, and reentrancy traps ($0.03 USDC).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "source_code": {"type": "string", "description": "Solidity source code"},
+                "token_symbol": {"type": "string", "default": "TKN"}
+            },
+            "required": ["source_code"]
+        }
+    },
+    {
+        "name": "secret_leak_scanner",
+        "description": "High-entropy credential scanner detecting leaked AWS, OpenAI, Anthropic, and Base private keys ($0.01 USDC).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string", "description": "File or text content to scan for secret keys"}
+            },
+            "required": ["content"]
+        }
+    },
+    {
+        "name": "deep_ast_vulnerability_auditor",
+        "description": "Deep AST code vulnerability auditor for Python detecting SQLi, insecure deserialization, and RCE ($0.03 USDC).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "source_code": {"type": "string", "description": "Python source code"}
+            },
+            "required": ["source_code"]
+        }
+    },
+    {
+        "name": "api_attack_surface_scanner",
+        "description": "API attack surface and defensive security header linter ($0.02 USDC).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "target_url": {"type": "string", "description": "HTTP endpoint URL to audit"}
+            },
+            "required": ["target_url"]
+        }
     }
 ]
 
