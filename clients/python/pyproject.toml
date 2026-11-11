@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "souq-mcp"
+version = "0.1.0"
+description = "Official 1-line MCP client & Python SDK for SOUQ autonomous micro-service and token-saving engine"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [
+    { name = "SOUQ Autonomous Commerce Swarm", email = "dev@souq-swarm.ai" }
+]
+keywords = ["mcp", "ai-agents", "llm", "token-compression", "crypto-arbitrage", "base-l2", "x402"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+wallet = [
+    "web3>=6.0.0",
+    "eth-account>=0.8.0"
+]
+
+[project.scripts]
+souq-mcp = "souq_mcp.cli:main"
+souq = "souq_mcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["souq_mcp"]

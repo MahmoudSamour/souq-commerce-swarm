@@ -1,0 +1,27 @@
+{
+  "name": "souq-mcp",
+  "version": "0.1.0",
+  "description": "Official 1-line MCP client and agent toolkit for SOUQ autonomous micro-services on Base L2",
+  "bin": {
+    "souq-mcp": "./bin/souq-mcp.js"
+  },
+  "main": "bin/souq-mcp.js",
+  "scripts": {
+    "start": "node ./bin/souq-mcp.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "cursor",
+    "ai-agents",
+    "polymarket-arbitrage",
+    "token-savings",
+    "x402"
+  ],
+  "author": "SOUQ Autonomous Commerce Swarm <dev@souq-swarm.ai>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
