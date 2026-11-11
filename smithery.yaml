@@ -13,13 +13,19 @@ startCommand:
     - souq-mcp
 metadata:
   name: "souq-mcp"
-  displayName: "SOUQ Agent Intelligence & Token-Saving Swarm"
-  description: "Sub-cent algorithmic MCP tools on Base L2: Polymarket arbitrage radar, 90% prompt token compression, Binance microstructure, and smart money whale flows."
+  displayName: "SOUQ Agent Intelligence, Cyber Defense & Token-Saving Swarm"
+  description: "Sub-cent algorithmic MCP tools on Base L2: Prompt injection firewall, smart contract honeypot radar, secret leak detector, Polymarket arbitrage, 90% prompt token compressor, and whale flows."
   icon: "https://written-emera-arapython-bf7436a4.apps.mistral.run/favicon.ico"
   tags:
+    - mcp
     - ai-agents
+    - cybersecurity
+    - prompt-injection-defense
+    - smart-contract-audit
+    - secret-scanner
     - token-savings
     - prediction-markets
     - arbitrage
     - web3
-    - crypto
+    - base-usdc
+    - x402
