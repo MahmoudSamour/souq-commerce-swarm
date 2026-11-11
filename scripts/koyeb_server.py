@@ -83,6 +83,7 @@ from agents.production.mcp_tool_builder import (
 )
 from agents.production.token_compressor import TokenContextCompressor, CodeASTSlicer
 from agents.production.dev_intelligence_vault import DevAPICheatSheetVault, DailyTechTrendsRadar
+from agents.production.cyber_threat_intelligence import CyberThreatIntelligenceRadar
 from agents.production.cyber_defense_vault import (
     PromptInjectionFirewall,
     SmartContractHoneypotRadar,
@@ -104,6 +105,7 @@ token_compressor = TokenContextCompressor()
 ast_slicer = CodeASTSlicer()
 dev_vault = DevAPICheatSheetVault()
 trends_radar = DailyTechTrendsRadar()
+threat_radar = CyberThreatIntelligenceRadar()
 prompt_firewall = PromptInjectionFirewall()
 honeypot_radar = SmartContractHoneypotRadar()
 secret_scanner = SecretLeakScanner()
@@ -320,6 +322,30 @@ async def api_catalog(request):
     })
 
 
+async def api_cyber_threat_intel(request):
+    """
+    Live cybersecurity threat intelligence status, rule counts, and active signatures.
+    """
+    sigs = threat_radar.load_cached_signatures()
+    return JSONResponse({
+        "status": "active",
+        "agent": "Sayf Cyber Threat Intelligence Sentinel",
+        "version": sigs.get("version", "2.0.0"),
+        "last_updated_epoch": sigs.get("last_updated_epoch", 0),
+        "total_rules": sigs.get("total_rules", 0),
+        "prompt_injection_rules_count": len(sigs.get("prompt_injection_rules", [])),
+        "honeypot_rules_count": len(sigs.get("honeypot_rules", [])),
+        "secret_rules_count": len(sigs.get("secret_rules", [])),
+        "services_protected": [
+            "prompt_injection_firewall",
+            "smart_contract_honeypot_radar",
+            "secret_leak_scanner",
+            "deep_ast_vulnerability_auditor",
+            "api_attack_surface_scanner"
+        ]
+    })
+
+
 async def api_tool_call(request):
     """
     HTTP REST / JSON-RPC endpoint for client AI agents executing paid tools with x402 headers.
@@ -479,6 +505,7 @@ routes = [
     Route("/.well-known/agent-card.json", agent_card),
     Route("/.well-known/agent.json", agent_card),
     Route("/api/catalog", api_catalog),
+    Route("/api/cyber/threat-intel", api_cyber_threat_intel),
     Route("/api/tools/call", api_tool_call, methods=["POST"]),
 ]
 

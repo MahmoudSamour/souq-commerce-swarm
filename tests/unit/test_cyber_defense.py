@@ -117,3 +117,58 @@ def test_api_attack_surface_scanner():
     assert len(res["missing_security_headers"]) >= 3
     assert "X-Frame-Options" in res["missing_security_headers"]
     assert len(res["hardening_recommendations"]) >= 3
+
+
+def test_cyber_threat_intelligence_radar_synthesis():
+    from agents.production.cyber_threat_intelligence import CyberThreatIntelligenceRadar
+    radar = CyberThreatIntelligenceRadar()
+    sigs = radar.fetch_latest_threat_signatures()
+    assert sigs["version"] == "2.0.0"
+    assert sigs["total_rules"] >= 20
+    assert len(sigs["prompt_injection_rules"]) >= 5
+    assert len(sigs["honeypot_rules"]) >= 5
+    assert len(sigs["secret_rules"]) >= 8
+
+
+def test_dynamic_honeypot_and_secret_detection():
+    from agents.production.cyber_defense_vault import SmartContractHoneypotRadar, SecretLeakScanner
+    # Test dynamic honeypot: maxTxAmount = 0 or sellTax = 99
+    radar = SmartContractHoneypotRadar()
+    code = """
+    contract TrapToken {
+        uint256 public maxTxAmount = 0;
+        function buy() external payable {}
+    }
+    """
+    res = radar.audit_contract_code(code)
+    assert res["status"] == "success"
+    assert res["is_honeypot"] is True
+    assert any(i["rule_id"] in ("ZERO_MAX_TX_BLOCK", "EXTREME_SELL_TAX") for i in res["issues"])
+
+    # Test dynamic secret scanner: Groq and DeepSeek keys
+    scanner = SecretLeakScanner()
+    groq_sample = "export GROQ_API_KEY=gsk_abcdef1234567890abcdef1234567890abcdef123456789012"
+    sec_res = scanner.scan_for_secrets(groq_sample)
+    assert sec_res["verdict"] == "LEAKS_DETECTED"
+    types = [l["secret_type"] for l in sec_res["leaks"]]
+    assert "GROQ_API_KEY" in types
+
+
+def test_team_lead_update_agent_coordination():
+    from agents.core.conductor import AutonomousUpdateTeamLead, RaisConductor
+    assert AutonomousUpdateTeamLead is RaisConductor
+    team_lead = AutonomousUpdateTeamLead()
+    assert len(team_lead.team_squad) == 6
+    assert "sayf_cyber_sentinel" in team_lead.team_squad
+    assert "kashif_tech_radar" in team_lead.team_squad
+    assert "riyadi_prediction_radar" in team_lead.team_squad
+    assert "buhuth_market_researcher" in team_lead.team_squad
+    assert "amin_compliance_auditor" in team_lead.team_squad
+    assert "munadi_distribution_herald" in team_lead.team_squad
+
+    report = team_lead.run_daily_cycle(broadcast_search=False)
+    assert report["status"] == "OPERATIONAL_AND_REVENUE_READY"
+    assert "team_lead" in report
+    assert report["team_lead"]["total_specialist_agents"] == 6
+    assert report["cybersecurity_intelligence"]["status"] == "ACTIVE_AND_REGULARLY_UPDATED"
+    assert report["cybersecurity_intelligence"]["total_threat_rules"] >= 20

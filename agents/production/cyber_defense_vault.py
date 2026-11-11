@@ -16,6 +16,12 @@ import urllib.request
 import urllib.parse
 from typing import Dict, Any, List, Optional, Tuple
 
+try:
+    from agents.production.cyber_threat_intelligence import CyberThreatIntelligenceRadar
+    _THREAT_RADAR = CyberThreatIntelligenceRadar()
+except Exception:
+    _THREAT_RADAR = None
+
 
 class PromptInjectionFirewall:
     """
@@ -54,6 +60,15 @@ class PromptInjectionFirewall:
         r"<\|im_end\|>",
         r"---BEGIN\s+(?:SYSTEM\s+PROMPT|INSTRUCTIONS)---",
     ]
+
+    def __init__(self):
+        self.dynamic_rules = []
+        if _THREAT_RADAR:
+            try:
+                sigs = _THREAT_RADAR.load_cached_signatures()
+                self.dynamic_rules = sigs.get("prompt_injection_rules", [])
+            except Exception:
+                pass
 
     def scan_prompt(self, text: str, strict_mode: bool = False) -> Dict[str, Any]:
         start_t = time.time()
@@ -101,6 +116,20 @@ class PromptInjectionFirewall:
                     "matched_pattern": match.group(0),
                     "description": "Attempted delimiter injection mimicking LLM chat formatting/system tags."
                 })
+
+        # Dynamic Threat Intelligence Rules
+        for rule in self.dynamic_rules:
+            pat = rule.get("pattern", "")
+            if pat and not any(f.get("matched_pattern") == pat for f in findings):
+                match = re.search(pat, text, re.IGNORECASE)
+                if match:
+                    findings.append({
+                        "rule_id": rule.get("id"),
+                        "category": rule.get("category", "ADVERSARIAL_INJECTION"),
+                        "severity": rule.get("severity", "HIGH"),
+                        "matched_pattern": match.group(0),
+                        "description": rule.get("description", "Dynamic threat signature match.")
+                    })
 
         # 4. Check for Hidden / Zero-Width Characters (Homoglyph & Evasion bypasses)
         zero_width_chars = [c for c in text if c in ("\u200b", "\u200c", "\u200d", "\ufeff", "\u00ad")]
@@ -160,6 +189,15 @@ class SmartContractHoneypotRadar:
         (r"selfdestruct\s*\(", "SELFDESTRUCT_BACKDOOR", "CRITICAL", "Contract contains selfdestruct capability allowing owner to terminate contract and steal funds.")
     ]
 
+    def __init__(self):
+        self.dynamic_rules = []
+        if _THREAT_RADAR:
+            try:
+                sigs = _THREAT_RADAR.load_cached_signatures()
+                self.dynamic_rules = sigs.get("honeypot_rules", [])
+            except Exception:
+                pass
+
     def audit_contract_code(self, source_code: str, token_symbol: str = "TOKEN") -> Dict[str, Any]:
         start_t = time.time()
         findings: List[Dict[str, Any]] = []
@@ -184,6 +222,24 @@ class SmartContractHoneypotRadar:
                     "matched_code": m.group(0),
                     "description": desc
                 })
+
+        # Dynamic Threat Intelligence Honeypot Signatures
+        for rule in self.dynamic_rules:
+            pat = rule.get("pattern", "")
+            rule_id = rule.get("rule_name", rule.get("id", "DYNAMIC_HONEYPOT_RULE"))
+            severity = rule.get("severity", "CRITICAL")
+            desc = rule.get("description", "Dynamic honeypot threat signature match.")
+            if pat and not any(f.get("rule_id") == rule_id for f in findings):
+                matches = list(re.finditer(pat, source_code, re.IGNORECASE))
+                for m in matches:
+                    line_no = source_code[:m.start()].count("\n") + 1
+                    findings.append({
+                        "rule_id": rule_id,
+                        "severity": severity,
+                        "line": line_no,
+                        "matched_code": m.group(0),
+                        "description": desc
+                    })
 
         # 2. Check for Reentrancy vulnerability (State write after low-level call)
         reentrancy_found = False
@@ -241,6 +297,15 @@ class SecretLeakScanner:
         ("BEARER_AUTH_HEADER", r"Bearer\s+[a-zA-Z0-9_\-\.]{20,}", "HIGH", "HTTP Authorization Bearer Token"),
     ]
 
+    def __init__(self):
+        self.dynamic_rules = []
+        if _THREAT_RADAR:
+            try:
+                sigs = _THREAT_RADAR.load_cached_signatures()
+                self.dynamic_rules = sigs.get("secret_rules", [])
+            except Exception:
+                pass
+
     @staticmethod
     def _calculate_shannon_entropy(string: str) -> float:
         """Calculates the Shannon entropy of a string."""
@@ -263,8 +328,25 @@ class SecretLeakScanner:
                 "latency_ms": 0
             }
 
-        # 1. Regex pattern matching for known key formats
-        for key_type, pattern, severity, desc in self.KEY_PATTERNS:
+        # 1. Regex pattern matching for known key formats + dynamic threat intel rules
+        patterns_to_check = list(self.KEY_PATTERNS)
+        known_types = {p[0] for p in patterns_to_check}
+        for item in self.dynamic_rules:
+            if isinstance(item, (list, tuple)) and len(item) >= 4:
+                k_type, pat, sev, desc = item[0], item[1], item[2], item[3]
+                if k_type not in known_types:
+                    patterns_to_check.append((k_type, pat, sev, desc))
+                    known_types.add(k_type)
+            elif isinstance(item, dict):
+                k_type = item.get("id", "CUSTOM_SECRET")
+                pat = item.get("pattern", "")
+                sev = item.get("severity", "CRITICAL")
+                desc = item.get("description", "Dynamic secret token pattern.")
+                if k_type not in known_types and pat:
+                    patterns_to_check.append((k_type, pat, sev, desc))
+                    known_types.add(k_type)
+
+        for key_type, pattern, severity, desc in patterns_to_check:
             for match in re.finditer(pattern, content):
                 val = match.group(0)
                 # Ignore common false positives like zero address or placeholders

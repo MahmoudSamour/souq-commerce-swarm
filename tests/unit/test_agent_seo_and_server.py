@@ -135,3 +135,15 @@ def test_prompt_injection_firewall_server_flow(client):
         assert res.headers.get("X-Souq-Tool") == "prompt_injection_firewall"
 
 
+def test_api_cyber_threat_intel_endpoint(client):
+    res = client.get("/api/cyber/threat-intel")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "active"
+    assert data["version"] == "2.0.0"
+    assert data["total_rules"] >= 20
+    assert "prompt_injection_firewall" in data["services_protected"]
+    assert "smart_contract_honeypot_radar" in data["services_protected"]
+    assert "secret_leak_scanner" in data["services_protected"]
+
+

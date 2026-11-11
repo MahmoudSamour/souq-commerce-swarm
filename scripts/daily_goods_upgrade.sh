@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# SOUQ // Daily Autonomous Intelligence, Market Research & AEO Upgrade Pipeline
-# Orchestrates:
-# 1. Tech & AI Trends Intelligence Synthesis
-# 2. Prediction Market Probability Arbitrage Warming
-# 3. Autonomous Ra'is Conductor & Buhuth Market Research Review
-# 4. Agent Engine Optimization (AEO) Broadcast & IndexNow Search Engine Ping
+# SOUQ // Autonomous Update Team Lead & Specialist Agent Squad Pipeline
+# Directed by: Ra'is Conductor (رئيس التحديث والعمليات)
+# Squad Specialists:
+# 1. Sayf (سيف - الحارس السيبراني): Dynamic Cyber Threat Intelligence Sentinel
+# 2. Kashif (المستكشف): Daily AI & Tech Trends Radar
+# 3. Riyadi (الرياضي): Prediction Market Arbitrage & Microstructure Engine
+# 4. Buhuth (البحوث): Autonomous Market Research & AEO Directives
+# 5. Amin (الأمين): Zero-Risk Compliance & Legal Clearance
+# 6. Munadi (المنادي): Global Discovery & IndexNow Search Broadcast
 # ==============================================================================
 set -euo pipefail
 
@@ -25,47 +28,53 @@ fi
 
 TIMESTAMP="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "===================================================================="
-echo "⚡ SOUQ AUTONOMOUS PIPELINE CYCLE STARTED AT: $TIMESTAMP"
+echo "⚡ SOUQ AUTONOMOUS UPDATE TEAM LEAD PIPELINE STARTED AT: $TIMESTAMP"
 echo "===================================================================="
 
 python3 -c "
 import sys
 import json
-from agents.production.dev_intelligence_vault import DailyTechTrendsRadar
-from agents.production.mcp_tool_builder import PredictionMarketArbitrageRadar
-from agents.core.conductor import RaisConductor
-from agents.distribution.munadi_herald import MunadiHerald
+from agents.core.conductor import AutonomousUpdateTeamLead
 
-print('🔄 [1/4] Refreshing Daily Tech & AI Goods Cache...')
-trends_radar = DailyTechTrendsRadar()
-trends = trends_radar.refresh_cache_and_get(force_refresh=True)
-print(f'   ✅ Fresh Daily Digest generated for date: {trends[\"digest_date\"]}')
+print('👑 [Team Lead: Ra\'is] Coordinating Autonomous Specialist Agent Squad...')
+lead = AutonomousUpdateTeamLead()
+squad = lead.team_squad
 
-print('📈 [2/4] Warming Prediction Market Arbitrage Radar...')
-pred_radar = PredictionMarketArbitrageRadar()
-arb = pred_radar.scan_prediction_arbitrage('BTC')
-print(f'   ✅ Analyzed {arb[\"opportunities_analyzed\"]} prediction markets | Benchmark BTC Spot: \${arb[\"benchmark_spot_price\"]}')
+print(f'   Registered Specialists: {len(squad)} autonomous agents')
+for code, agent_info in squad.items():
+    print(f'   * {agent_info[\"name\"]}: {agent_info[\"role\"]}')
 
-print('🏛️ [3/4] Executing Ra\'is Conductor & Buhuth Market Research Review...')
-conductor = RaisConductor()
-report = conductor.run_daily_cycle()
-market_research = report.get('market_research', {})
-directive = market_research.get('market_directive', {})
+print('\n🛡️ [Squad Agent: Sayf] Updating Dynamic Cybersecurity Threat Signatures...')
+report = lead.run_daily_cycle(broadcast_search=True)
+cyber = report.get('cybersecurity_intelligence', {})
+print(f'   ✅ Cyber Sentinel Status: {cyber.get(\"status\")}')
+print(f'   ✅ Active Threat Rules Loaded: {cyber.get(\"total_threat_rules\")} signatures (v{cyber.get(\"version\")})')
+print(f'      - Prompt Injection Rules: {cyber.get(\"prompt_injection_rules\")}')
+print(f'      - Smart Contract Honeypot Traps: {cyber.get(\"honeypot_rules\")}')
+print(f'      - High-Entropy Secret Leak Rules: {cyber.get(\"secret_leak_rules\")}')
 
-print(f'   ✅ Conductor Status: {report[\"status\"]}')
-print(f'   ✅ Active Cleared Catalog: {len(report[\"active_catalog\"])} goods')
-print(f'   📊 Market Research Verdict: {directive.get(\"strategic_verdict\", \"N/A\")}')
-print(f'   🎯 Prioritized Tools: {directive.get(\"prioritized_tools\", [])}')
-print(f'   🔍 Target AEO Keywords: {len(directive.get(\"aeo_target_keywords\", []))} search queries loaded')
+print('\n🔄 [Squad Agent: Kashif] Daily AI & Developer Tech Trends Refreshed:')
+tech = report.get('tech_ai_trends', {})
+print(f'   ✅ Tech Digest Date: {tech.get(\"digest_date\")} | Trending Repos: {tech.get(\"total_trending_topics\")}')
 
-print('📡 [4/4] Executing Agent Engine Optimization (AEO) & IndexNow Broadcast...')
-herald = MunadiHerald()
-audit = herald.verify_public_discovery_endpoints()
-print(f'   ✅ Discovery Endpoint Health: {audit.get(\"overall_status\")}')
-index_res = herald.broadcast_to_indexnow()
-print(f'   ✅ IndexNow Search Network Ping: HTTP {index_res.get(\"status\")} ({index_res.get(\"urls_submitted\")} machine URLs broadcasted)')
+print('\n📈 [Squad Agent: Riyadi] Prediction Market Probability Arbitrage Warmed:')
+arb = report.get('prediction_arbitrage', {})
+print(f'   ✅ Analyzed {arb.get(\"markets_analyzed\")} prediction markets | Benchmark BTC: \${arb.get(\"benchmark_spot\")}')
+
+print('\n🏛️ [Squad Agent: Amin & Buhuth] Compliance Clearance & Market Research Review:')
+directive = report.get('market_research', {}).get('market_directive', {})
+print(f'   ✅ Cleared & Active Catalog: {len(report.get(\"active_catalog\", []))} goods')
+print(f'   📊 Strategic Market Verdict: {directive.get(\"strategic_verdict\", \"N/A\")}')
+print(f'   🎯 Prioritized Production Tools: {directive.get(\"prioritized_tools\", [])}')
+print(f'   🔍 AEO Search Targets: {len(directive.get(\"aeo_target_keywords\", []))} queries')
+
+print('\n📡 [Squad Agent: Munadi] Discovery Endpoints & Global Search Broadcast:')
+herald = report.get('herald_distribution', {})
+print(f'   ✅ Discovery Endpoints Health: {herald.get(\"endpoints_health\")}')
+index_res = herald.get('indexnow', {})
+print(f'   ✅ IndexNow Search Broadcast: HTTP {index_res.get(\"status\")} ({index_res.get(\"urls_submitted\")} machine URLs submitted)')
 "
 
 echo "===================================================================="
-echo "🎉 SOUQ AUTONOMOUS PIPELINE CYCLE COMPLETED AT: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+echo "🎉 SOUQ AUTONOMOUS UPDATE TEAM LEAD PIPELINE COMPLETED AT: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "===================================================================="
