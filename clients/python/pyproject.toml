@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "souq-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Official 1-line MCP client & Python SDK for SOUQ autonomous micro-service and token-saving engine"
 readme = "README.md"
 requires-python = ">=3.9"
