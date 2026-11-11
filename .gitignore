@@ -33,7 +33,6 @@ data/exports/*.json
 data/cache/
 *.parquet
 *.tar.gz
-!souq_migration_bundle.tar.gz
 *.log
 logs/
 
