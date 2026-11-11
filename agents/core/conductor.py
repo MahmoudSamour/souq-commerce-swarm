@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from agents.discovery.opportunity_ranker import OpportunityRanker, ProductOpportunity
+from agents.discovery.market_researcher import MarketResearchAgent
 from agents.compliance.amin_auditor import AminAuditor
 from agents.production.mcp_tool_builder import MarketMicrostructureEngine, ASTSecurityScanner
 from agents.treasury.crypto_receipt_engine import CryptoReceiptEngine
@@ -25,6 +26,7 @@ class RaisConductor:
     def __init__(self, db_path: str = "data/souq_treasury_lake.duckdb"):
         self.db_path = db_path
         self.ranker = OpportunityRanker()
+        self.researcher = MarketResearchAgent()
         self.auditor = AminAuditor()
         self.receipt_engine = CryptoReceiptEngine(db_path=db_path)
         self.negotiation_tracker = NegotiationTracker(db_path=db_path)
@@ -42,6 +44,17 @@ class RaisConductor:
 
         # 1. Discovery & Opportunity Ranking (Kashif)
         test_opportunities = [
+            ProductOpportunity(
+                concept_id="PREDICTION_MARKET_ARBITRAGE",
+                title="Black-Scholes vs. Polymarket Prediction Probability Arbitrage Radar",
+                target_buyer="A2A_AGENT",
+                demand_intensity=9.9,
+                willingness_to_pay=9.8,
+                supply_saturation=1.2,
+                synthesis_complexity=1.8,
+                legal_risk_score=1.0,
+                suggested_unit_price_usd=0.03
+            ),
             ProductOpportunity(
                 concept_id="TOKEN_CONTEXT_COMPRESSOR",
                 title="High-Entropy Semantic Token Context Compressor (90% Savings)",
@@ -161,13 +174,17 @@ class RaisConductor:
                 opp["compliance_token"] = audit_result["clearance_token"]
                 approved_catalog.append(opp)
 
-        # 3. Telemetry & Treasury Lake Summary (Sayrafi)
+        # 3. Market Research Review & Decision (Buhuth)
+        market_decision = self.researcher.review_catalog_and_decide(approved_catalog)
+
+        # 4. Telemetry & Treasury Lake Summary (Sayrafi)
         market_intel = self.negotiation_tracker.get_market_intelligence_summary()
 
         return {
             "cycle_timestamp": timestamp,
             "status": "OPERATIONAL_AND_REVENUE_READY",
             "active_catalog": approved_catalog,
+            "market_research": market_decision,
             "market_intelligence": market_intel,
             "payment_rails": {
                 "rail_a_agent_crypto": "ACTIVE (HTTP 402 + Base USDC)",
