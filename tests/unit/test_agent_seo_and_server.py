@@ -147,3 +147,23 @@ def test_api_cyber_threat_intel_endpoint(client):
     assert "secret_leak_scanner" in data["services_protected"]
 
 
+def test_api_stats_endpoint_and_traffic_telemetry(client):
+    # Hit an endpoint with agent user agent
+    headers = {"User-Agent": "Claude-Agent/1.0 (Anthropic)"}
+    res_agent = client.get("/health", headers=headers)
+    assert res_agent.status_code == 200
+
+    # Query /api/stats
+    res = client.get("/api/stats")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "online"
+    assert "sales_summary" in data
+    assert "traffic_telemetry" in data
+    assert "negotiations_telemetry" in data
+    assert data["traffic_telemetry"]["total_requests"] >= 1
+    assert data["traffic_telemetry"]["unique_visitors"] >= 1
+    assert "AI_AGENT" in data["traffic_telemetry"]["client_categories"]
+
+
+

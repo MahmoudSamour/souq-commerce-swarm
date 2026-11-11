@@ -18,6 +18,7 @@ from starlette.staticfiles import StaticFiles
 from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
+import duckdb
 
 # Ensure project root is on path & load secure environment
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -27,11 +28,52 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 MAX_PAYLOAD_BYTES = int(os.getenv("SOUQ_MAX_PAYLOAD_BYTES", "1048576"))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("SOUQ_RATE_LIMIT_PER_MINUTE", "120"))
+DB_PATH = os.getenv("SOUQ_DUCKDB_PATH", os.path.join(PROJECT_ROOT, "data", "souq_treasury_lake.duckdb"))
+
+from agents.analytics.traffic_telemetry import TrafficTelemetryEngine
+from agents.analytics.negotiation_tracker import NegotiationTracker
+
+telemetry_engine = TrafficTelemetryEngine(db_path=DB_PATH)
+negotiation_tracker = NegotiationTracker(db_path=DB_PATH)
 
 # In-memory sliding window rate-limiter per IP
 _ip_request_history = {}
 # In-memory free trial history per IP (1 free call per 24h for agent evaluation)
 _ip_free_trial_history = {}
+
+
+class TrafficTelemetryMiddleware(BaseHTTPMiddleware):
+    """
+    Real-time HTTP traffic and agent interaction logger.
+    Captures every human, bot, and autonomous agent interaction into DuckDB.
+    """
+
+    async def dispatch(self, request, call_next):
+        start_time = time.time()
+        client_ip = request.client.host if request.client else "unknown"
+        user_agent = request.headers.get("User-Agent", "")
+        method = request.method
+        path = request.url.path
+
+        response = await call_next(request)
+
+        duration_ms = max(1, int((time.time() - start_time) * 1000))
+        tool_name = response.headers.get("X-Souq-Tool")
+        billing_status = response.headers.get("X-Souq-Billing")
+
+        # Telemetry record in DuckDB
+        telemetry_engine.record_request(
+            method=method,
+            endpoint=path,
+            status_code=response.status_code,
+            client_ip=client_ip,
+            user_agent=user_agent,
+            tool_name=tool_name,
+            billing_status=billing_status,
+            duration_ms=duration_ms
+        )
+
+        return response
 
 
 class SecurityHeadersAndProtectionMiddleware(BaseHTTPMiddleware):
@@ -350,6 +392,7 @@ async def api_tool_call(request):
     """
     HTTP REST / JSON-RPC endpoint for client AI agents executing paid tools with x402 headers.
     """
+    call_start = time.time()
     try:
         body = await request.json()
     except Exception:
@@ -357,6 +400,8 @@ async def api_tool_call(request):
 
     tool_name = body.get("tool", "")
     payment_tx = request.headers.get("X-Payment-Tx") or body.get("payment_tx_hash")
+    user_agent = request.headers.get("User-Agent", "anonymous-agent")
+    client_ip = request.client.host if request.client else "unknown"
 
     eco = TOOL_ECONOMICS.get(tool_name, {
         "price_usdc": 0.02,
@@ -368,7 +413,6 @@ async def api_tool_call(request):
     is_free_trial = False
 
     if not payment_tx:
-        client_ip = request.client.host if request.client else "unknown"
         now = time.time()
         last_trial = _ip_free_trial_history.get(client_ip, 0)
         enable_free_trial = os.getenv("SOUQ_ENABLE_FREE_TRIAL", "true").lower() == "true"
@@ -388,11 +432,36 @@ async def api_tool_call(request):
                     "net_roi_pct": eco["net_roi_pct"]
                 }
             }
+            # Record negotiation
+            negotiation_tracker.log_negotiation(
+                client_agent_id=user_agent[:64],
+                client_user_agent=user_agent,
+                tool_requested=tool_name,
+                initial_quote_usd=price,
+                settled_price_usd=0.0,
+                payment_protocol="freemium_trial",
+                outcome="FREE_TRIAL_GRANTED",
+                latency_ms=max(1, int((time.time() - call_start) * 1000)),
+                metadata={"tokens_saved": eco["avg_tokens_saved"]}
+            )
         else:
             challenge = payment_gw.generate_402_challenge(
                 tool_name=tool_name,
                 price_usdc=price,
-                client_agent_id=request.headers.get("User-Agent", "anonymous-agent")
+                client_agent_id=user_agent
+            )
+            # Record negotiation challenge
+            negotiation_tracker.log_negotiation(
+                client_agent_id=user_agent[:64],
+                client_user_agent=user_agent,
+                tool_requested=tool_name,
+                initial_quote_usd=price,
+                settled_price_usd=None,
+                payment_protocol="x402_http",
+                outcome="PRICE_CHALLENGED",
+                latency_ms=max(1, int((time.time() - call_start) * 1000)),
+                rejection_reason="HTTP_402_PAYMENT_REQUIRED",
+                metadata={"tokens_saved": eco["avg_tokens_saved"]}
             )
             challenge_headers = {
                 "X-Souq-Tool": tool_name,
@@ -402,7 +471,8 @@ async def api_tool_call(request):
                 "X-Souq-Net-ROI": f"{eco['net_roi_pct']}%",
                 "X-Souq-Recipient": payment_gw.recipient_wallet,
                 "X-Souq-Network": "Base",
-                "X-Souq-Token": "USDC"
+                "X-Souq-Token": "USDC",
+                "X-Souq-Billing": "HTTP_402_CHALLENGE"
             }
             return JSONResponse(challenge, status_code=402, headers=challenge_headers)
     else:
@@ -417,7 +487,31 @@ async def api_tool_call(request):
         )
 
         if not settled:
+            negotiation_tracker.log_negotiation(
+                client_agent_id=user_agent[:64],
+                client_user_agent=user_agent,
+                tool_requested=tool_name,
+                initial_quote_usd=price,
+                settled_price_usd=None,
+                payment_protocol="x402_http",
+                outcome="INVALID_PAYMENT",
+                latency_ms=max(1, int((time.time() - call_start) * 1000)),
+                rejection_reason="VERIFICATION_FAILED"
+            )
             return JSONResponse({"error": "Payment Verification Failed", "details": settlement}, status_code=400)
+
+        # Record settled negotiation
+        negotiation_tracker.log_negotiation(
+            client_agent_id=user_agent[:64],
+            client_user_agent=user_agent,
+            tool_requested=tool_name,
+            initial_quote_usd=price,
+            settled_price_usd=price,
+            payment_protocol="x402_base_usdc",
+            outcome="SETTLED",
+            latency_ms=max(1, int((time.time() - call_start) * 1000)),
+            metadata={"tx_hash": payment_tx, "tokens_saved": eco["avg_tokens_saved"]}
+        )
 
     # Execute tool logic
     if tool_name == "token_context_compressor":
@@ -493,6 +587,43 @@ async def api_tool_call(request):
     return JSONResponse(res, headers=headers)
 
 
+async def api_stats(request):
+    """
+    Public real-time traffic telemetry, agent interactions, and commercial sales stats.
+    """
+    traffic = telemetry_engine.get_traffic_summary()
+    market = negotiation_tracker.get_market_intelligence_summary()
+
+    confirmed_orders = 0
+    confirmed_volume_usd = 0.0
+    try:
+        with duckdb.connect(DB_PATH, read_only=True) as con:
+            res = con.execute("""
+                SELECT COUNT(*), COALESCE(SUM(amount_usd), 0.0)
+                FROM crypto_receipts
+                WHERE payer_address NOT LIKE '%Simulated%'
+            """).fetchone()
+            if res:
+                confirmed_orders = int(res[0])
+                confirmed_volume_usd = float(res[1])
+    except Exception:
+        pass
+
+    return JSONResponse({
+        "service": "SOUQ Autonomous Agent Commerce Swarm",
+        "status": "online",
+        "settlement_rail": "Base L2 USDC (x402)",
+        "recipient_wallet": payment_gw.recipient_wallet,
+        "sales_summary": {
+            "confirmed_paid_orders": confirmed_orders,
+            "total_settled_usd": confirmed_volume_usd,
+            "currency": "USDC"
+        },
+        "traffic_telemetry": traffic,
+        "negotiations_telemetry": market
+    })
+
+
 routes = [
     Route("/", homepage),
     Route("/health", health),
@@ -506,10 +637,12 @@ routes = [
     Route("/.well-known/agent.json", agent_card),
     Route("/api/catalog", api_catalog),
     Route("/api/cyber/threat-intel", api_cyber_threat_intel),
+    Route("/api/stats", api_stats),
     Route("/api/tools/call", api_tool_call, methods=["POST"]),
 ]
 
 middleware = [
+    Middleware(TrafficTelemetryMiddleware),
     Middleware(SecurityHeadersAndProtectionMiddleware)
 ]
 

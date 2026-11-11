@@ -430,6 +430,7 @@
       <a href="#playground">Live Playground</a>
       <a href="#setup">1-Click Setup</a>
       <a href="#catalog">Tools Catalog</a>
+      <a href="/api/stats">Live Telemetry</a>
       <a href="/api/cyber/threat-intel">Threat Intel</a>
       <a href="/.well-known/mcp.json">mcp.json</a>
       <div class="badge">Base L2 Live (Sub-5ms)</div>
@@ -452,6 +453,26 @@
         <div class="pill">
           <span>pip install souq-mcp</span>
           <button onclick="navigator.clipboard.writeText('pip install souq-mcp'); alert('Copied pip command!');">Copy</button>
+        </div>
+      </div>
+
+      <!-- Live Real-Time Telemetry Bar -->
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 24px; margin: 30px auto 10px; max-width: 900px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; text-align: center;">
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700;">Total Traffic Hits</div>
+          <div id="statTotalRequests" style="font-size: 24px; font-weight: 800; color: #38BDF8; font-family: 'JetBrains Mono', monospace;">--</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700;">Unique Visitors</div>
+          <div id="statUniqueVisitors" style="font-size: 24px; font-weight: 800; color: #818CF8; font-family: 'JetBrains Mono', monospace;">--</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700;">AI Agents & Bots</div>
+          <div id="statAiAgents" style="font-size: 24px; font-weight: 800; color: #34D399; font-family: 'JetBrains Mono', monospace;">--</div>
+        </div>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 700;">Base L2 USDC Settled</div>
+          <div id="statSettledUsd" style="font-size: 24px; font-weight: 800; color: #F59E0B; font-family: 'JetBrains Mono', monospace;">$0.00</div>
         </div>
       </div>
     </section>
@@ -830,9 +851,31 @@ res = client.call_tool("prompt_injection_firewall", {
       alert('Copied snippet to clipboard!');
     }
 
-    // Initialize with default attack sample
+    async function fetchTelemetryStats() {
+      try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+          const data = await res.json();
+          const traffic = data.traffic_telemetry || {};
+          const sales = data.sales_summary || {};
+          const cats = traffic.client_categories || {};
+          
+          document.getElementById('statTotalRequests').innerText = (traffic.total_requests || 0).toLocaleString();
+          document.getElementById('statUniqueVisitors').innerText = (traffic.unique_visitors || 0).toLocaleString();
+          const agentsCount = (cats.AI_AGENT || 0) + (cats.SEARCH_BOT || 0) + (cats.CLI_TOOL || 0);
+          document.getElementById('statAiAgents').innerText = agentsCount.toLocaleString();
+          document.getElementById('statSettledUsd').innerText = '$' + (sales.total_settled_usd || 0).toFixed(2);
+        }
+      } catch(e) {
+        console.debug('Telemetry error', e);
+      }
+    }
+
+    // Initialize with default attack sample and telemetry
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('playInput').value = SAMPLES.firewall.attack;
+      fetchTelemetryStats();
+      setInterval(fetchTelemetryStats, 20000);
     });
   </script>
 </body>
