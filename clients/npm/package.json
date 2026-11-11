@@ -1,6 +1,6 @@
 {
   "name": "souq-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Official 1-line MCP client and agent toolkit for SOUQ autonomous micro-services on Base L2",
   "bin": {
     "souq-mcp": "./bin/souq-mcp.js"
