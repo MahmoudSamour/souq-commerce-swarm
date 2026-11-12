@@ -40,4 +40,10 @@ compliance:
   cfaa_public_only: true
   dmca_non_circumvention: true
   export_formats: ["csv", "json"]
+  aml_kyc_compliance:
+    block_restricted_sources: true
+    block_unverified_third_party_funding: true
+    strict_sender_allowlist_only: false
+    compliance_audit_log: "data/compliance/aml_audit_log.json"
+
 

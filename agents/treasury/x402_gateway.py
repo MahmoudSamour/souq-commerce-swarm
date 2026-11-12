@@ -43,6 +43,11 @@ class X402PaymentGateway:
         self.usdc_contract = os.getenv("BASE_USDC_CONTRACT", "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
         self.web3 = Web3(Web3.HTTPProvider(self.rpc_url))
 
+        # AML / Compliance Deny-List for Restricted and Sanctioned Source Addresses
+        self.restricted_addresses = set(
+            addr.lower() for addr in os.getenv("RESTRICTED_SOURCE_ADDRESSES", "").split(",") if addr.strip()
+        )
+
     def generate_402_challenge(
         self,
         tool_name: str,
@@ -179,6 +184,27 @@ class X402PaymentGateway:
                 valid_transfer, verified_payer, err_msg = self._verify_erc20_usdc_transfer(tx_receipt, expected_units)
                 if not valid_transfer:
                     return False, {"error": err_msg}
+
+                # 2b. AML / Compliance Gate: Block Restricted / Sanctioned Source Addresses
+                if verified_payer.lower() in self.restricted_addresses:
+                    latency = int((time.time() - start_t) * 1000)
+                    self.negotiation_tracker.log_negotiation(
+                        client_agent_id=client_agent_id,
+                        client_user_agent=client_user_agent,
+                        tool_requested=tool_name,
+                        initial_quote_usd=expected_price_usdc,
+                        settled_price_usd=None,
+                        payment_protocol="x402_http",
+                        outcome="REJECTED_AML_RESTRICTED_SOURCE",
+                        latency_ms=latency,
+                        rejection_reason=f"Payer {verified_payer} is on the restricted source deny-list."
+                    )
+                    return False, {
+                        "error": "Payment Rejected: Restricted Source",
+                        "message": "Funds from restricted or unverified third-party sources cannot be accepted under terms of use compliance.",
+                        "payer_address": verified_payer
+                    }
+
                 payer_address = verified_payer
             except Exception as e:
                 return False, {"error": f"On-chain Base verification failed: {str(e)}"}

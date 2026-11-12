@@ -40,6 +40,11 @@ class AminAuditor:
         provides_trade_signals = product_metadata.get("claims_guaranteed_profit", False)
         checks["sec_safe_harbor"] = not provides_trade_signals
 
+        # 6. AML / Sanctions & Restricted Source Quarantine (Binance Terms of Use Compliance)
+        from_restricted_source = product_metadata.get("is_restricted_source", False)
+        involves_unverified_p2p = product_metadata.get("unverified_third_party_funding", False)
+        checks["aml_sanctions_clearance"] = not (from_restricted_source or involves_unverified_p2p)
+
         all_passed = all(checks.values())
 
         clearance_token = None
