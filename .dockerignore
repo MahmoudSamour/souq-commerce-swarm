@@ -1,0 +1,25 @@
+# Secrets and Keys
+.env
+*.env
+**/.env*
+*.key
+*.pem
+*.secret
+.koyeb*
+
+# Git and dev artifacts
+.git
+.github
+.pytest_cache
+.venv
+__pycache__
+*.pyc
+
+# Financial and sensitive data
+data/receipts/*.json
+data/*.duckdb
+data/*.duckdb.wal
+data/exports/
+data/cache/
+logs/
+tests/
