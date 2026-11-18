@@ -8,12 +8,19 @@ logging.basicConfig(level=logging.ERROR, stream=sys.stderr)
 
 TOOLS_METADATA = [
     {
+        "name": "souq_account_status",
+        "description": "Free discovery & balance check: inspects current prepaid SOUQ_API_KEY credits, Base USDC payment details, and tool pricing.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
         "name": "token_context_compressor",
         "description": "Slashes LLM context bloat by 80-95% to save prompt tokens ($0.01 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "raw_content": {"type": "string", "description": "The raw text, markdown, or code to compress"}
+                "raw_content": {"type": "string", "description": "The raw text, markdown, or code to compress"},
+                "max_compression": {"type": "boolean", "default": True, "description": "Enable aggressive pruning, table compaction, and log deduplication"},
+                "mode": {"type": "string", "enum": ["auto", "prose", "code", "logs"], "default": "auto", "description": "Optional compression profile hint (auto, prose, code, logs)"}
             },
             "required": ["raw_content"]
         }
@@ -99,7 +106,8 @@ TOOLS_METADATA = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "asset": {"type": "string", "default": "BTC", "description": "Target crypto asset (BTC, ETH, SOL)"}
+                "asset": {"type": "string", "default": "BTC", "description": "Target crypto asset (BTC, ETH, SOL)"},
+                "limit": {"type": "integer", "default": 5, "description": "Maximum number of arbitrage opportunities to return"}
             }
         }
     },
@@ -140,14 +148,14 @@ TOOLS_METADATA = [
     },
     {
         "name": "smart_contract_honeypot_radar",
-        "description": "Audits Solidity contracts for 99% sell taxes, transfer blacklists, and reentrancy traps ($0.03 USDC).",
+        "description": "Audits Solidity contracts OR live Base 0x contract addresses for honeypots, transfer blacklists, and reentrancy ($0.03 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "source_code": {"type": "string", "description": "Solidity source code"},
+                "source_code": {"type": "string", "default": "", "description": "Solidity source code"},
+                "contract_address": {"type": "string", "description": "Optional Base 0x contract address for live bytecode & Blockscout source inspection"},
                 "token_symbol": {"type": "string", "default": "TKN"}
-            },
-            "required": ["source_code"]
+            }
         }
     },
     {
@@ -156,7 +164,8 @@ TOOLS_METADATA = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "content": {"type": "string", "description": "File or text content to scan for secret keys"}
+                "content": {"type": "string", "description": "File or text content to scan for secret keys"},
+                "entropy_threshold": {"type": "number", "default": 4.2, "description": "Shannon entropy threshold for unknown secret detection"}
             },
             "required": ["content"]
         }
@@ -178,7 +187,12 @@ TOOLS_METADATA = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "target_url": {"type": "string", "description": "HTTP endpoint URL to audit"}
+                "target_url": {"type": "string", "description": "HTTP endpoint URL to audit"},
+                "headers_to_check": {
+                    "type": "object",
+                    "additionalProperties": {"type": "string"},
+                    "description": "Optional HTTP response headers map to audit offline"
+                }
             },
             "required": ["target_url"]
         }
@@ -218,7 +232,7 @@ class StdioMCPServer:
     def handle_message(self, msg: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         msg_id = msg.get("id")
         method = msg.get("method")
-        params = msg.get("params", {})
+        params = msg.get("params") or {}
 
         if method == "initialize":
             return {
@@ -229,12 +243,12 @@ class StdioMCPServer:
                     "capabilities": {"tools": {}},
                     "serverInfo": {
                         "name": "souq-mcp",
-                        "version": "0.1.0"
+                        "version": "0.3.0"
                     }
                 }
             }
 
-        elif method == "notifications/initialized":
+        elif method == "notifications/initialized" or (isinstance(method, str) and method.startswith("notifications/") and msg_id is None):
             return None
 
         elif method == "tools/list":
@@ -246,9 +260,14 @@ class StdioMCPServer:
 
         elif method == "tools/call":
             tool_name = params.get("name")
-            arguments = params.get("arguments", {})
+            arguments = params.get("arguments") or {}
             try:
-                res = self.client.call_tool(tool_name, **arguments)
+                if not isinstance(arguments, dict):
+                    raise TypeError("Tool arguments must be a JSON object")
+                if tool_name == "souq_account_status":
+                    res = self.client.balance()
+                else:
+                    res = self.client.call_tool(tool_name, **arguments)
                 return {
                     "jsonrpc": "2.0",
                     "id": msg_id,
@@ -262,8 +281,8 @@ class StdioMCPServer:
                 return {
                     "jsonrpc": "2.0",
                     "id": msg_id,
-                    "isError": True,
                     "result": {
+                        "isError": True,
                         "content": [
                             {"type": "text", "text": f"Error executing tool {tool_name}: {str(ex)}"}
                         ]

@@ -1,112 +1,353 @@
 {
   "$schema": "https://json.schemastore.org/mcp.json",
   "name": "SOUQ Autonomous Agent Commerce & Token-Saving Storefront",
-  "version": "1.1.0",
-  "description": "High-density token-saving analytical tools, funding-rate arbitrage scanners, and market microstructure endpoints for autonomous AI agents.",
+  "version": "0.3.0",
+  "description": "16 paid analytical micro-services + free souq_account_status discovery tool: token context compression, AST code slicing/auditing, multi-venue crypto microstructure, Polymarket probability arbitrage, and cyber defense firewalls on Base L2 USDC.",
   "vendor": "SOUQ Autonomous Swarm",
+  "transport": {
+    "streamable_http": "https://written-emera-arapython-bf7436a4.apps.mistral.run/mcp",
+    "streamable_http_methods": ["POST", "DELETE"],
+    "streamable_http_get_behavior": "405 Method Not Allowed (stateless JSON-RPC 2.0 via POST /mcp; DELETE returns 204)",
+    "stdio_npx": "npx -y souq-mcp",
+    "stdio_uvx": "uvx souq-mcp",
+    "stdio_python": "python -m souq_mcp"
+  },
+  "endpoints": {
+    "homepage": "https://written-emera-arapython-bf7436a4.apps.mistral.run/",
+    "topup_ui": "https://written-emera-arapython-bf7436a4.apps.mistral.run/#topup",
+    "health": "https://written-emera-arapython-bf7436a4.apps.mistral.run/health",
+    "catalog": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/catalog",
+    "products": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/products",
+    "stats": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/stats",
+    "threat_intel": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/cyber/threat-intel",
+    "tool_call": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/tools/call",
+    "mcp": "https://written-emera-arapython-bf7436a4.apps.mistral.run/mcp",
+    "openapi": "https://written-emera-arapython-bf7436a4.apps.mistral.run/openapi.json"
+  },
   "settlement": {
     "protocol": "x402-v1.0",
     "network": "Base",
+    "chain_id": 8453,
     "currency": "USDC",
     "contract": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    "recipient": "0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF"
+    "recipient": "0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF",
+    "free_trial": {
+      "quota": "1 call per 24h per client IP",
+      "applies_to": "All 16 paid tools when no X-API-Key or X-Payment-Tx is provided"
+    },
+    "prepaid_api_key": {
+      "topup_endpoint": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/credits/topup",
+      "balance_endpoint": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/credits/balance",
+      "ui_url": "https://written-emera-arapython-bf7436a4.apps.mistral.run/#topup",
+      "header": "X-API-Key",
+      "min_topup_usd": 0.50
+    },
+    "polar_mor": {
+      "products_endpoint": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/products",
+      "checkout_endpoint": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/checkout/create",
+      "claim_endpoint": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/checkout/claim"
+    }
   },
+  "discovery_tools": [
+    {
+      "name": "souq_account_status",
+      "price_usdc": 0.0,
+      "description": "Free discovery & balance check: inspects current prepaid SOUQ API key credits, Base USDC payment wallet, and available tools.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ],
   "tools": [
     {
       "name": "token_context_compressor",
-      "description": "Semantic context compressor slashes LLM context bloat by 80-95% to save prompt tokens.",
+      "category": "Context Optimization",
+      "description": "Compresses bloated HTML, JSON objects/arrays, logs, or markdown by 60-95% while preserving entities ($0.01 USDC).",
       "price_usdc": 0.01,
-      "estimated_tokens_saved": "10,000 - 30,000 per invocation"
+      "avg_tokens_saved": 14000,
+      "est_inference_savings_usd": 0.07,
+      "net_roi_pct": 600,
+      "estimated_tokens_saved": "14,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "raw_content": { "type": "string", "description": "Raw HTML, JSON, log, or markdown text to compress" },
+          "max_compression": { "type": "boolean", "default": true },
+          "mode": {
+            "type": "string",
+            "enum": ["auto", "html", "json", "log", "markdown", "prose"],
+            "default": "auto"
+          },
+          "target_ratio": { "type": "number", "description": "Optional target compression ratio in (0.05, 0.95)" }
+        },
+        "required": ["raw_content"]
+      }
     },
     {
       "name": "ast_structural_slicer",
-      "description": "Surgically slices targeted AST functions from source code instead of reading entire files.",
+      "category": "Code Slicing",
+      "description": "Surgically extracts a single AST function or class from Python/Solidity source code ($0.02 USDC).",
       "price_usdc": 0.02,
-      "estimated_tokens_saved": "2,000 - 5,000 per invocation"
+      "avg_tokens_saved": 3000,
+      "est_inference_savings_usd": 0.015,
+      "net_roi_pct": 75,
+      "estimated_tokens_saved": "3,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source_code": { "type": "string" },
+          "target_symbol": { "type": "string" }
+        },
+        "required": ["source_code", "target_symbol"]
+      }
     },
     {
       "name": "quant_microstructure_radar",
-      "description": "Real-time Binance order book depth, Order Book Imbalance (OBI), and liquidation risk.",
+      "category": "Alpha & Microstructure",
+      "description": "Live order book depth, spread bps, Order Book Imbalance (OBI), and cascade risk score ($0.02 USDC).",
       "price_usdc": 0.02,
-      "estimated_tokens_saved": "Saves 15,000 tokens of raw tick data ingestion"
+      "avg_tokens_saved": 15000,
+      "est_inference_savings_usd": 0.075,
+      "net_roi_pct": 275,
+      "estimated_tokens_saved": "15,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string", "default": "BTC/USDT" }
+        }
+      }
     },
     {
       "name": "cross_exchange_arbitrage_scanner",
-      "description": "Scans Spot vs. Perpetual Futures basis spreads and calculates annualized Delta-Neutral Funding Rate APR.",
+      "category": "Arbitrage & Basis",
+      "description": "Scans Spot vs Perpetual Futures basis spreads and annualized delta-neutral funding APR ($0.03 USDC).",
       "price_usdc": 0.03,
-      "estimated_tokens_saved": "Saves 12,000 tokens of multi-endpoint polling"
+      "avg_tokens_saved": 12000,
+      "est_inference_savings_usd": 0.06,
+      "net_roi_pct": 100,
+      "estimated_tokens_saved": "12,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string", "default": "BTC/USDT" }
+        }
+      }
     },
     {
       "name": "orderbook_slippage_simulator",
-      "description": "Walks live Binance order book depth (100 levels) to calculate VWAP, slippage, and price impact for any trade size.",
+      "category": "Execution Optimization",
+      "description": "Walks 100 levels of live order book depth to compute expected VWAP, slippage bps, and impact ($0.02 USDC).",
       "price_usdc": 0.02,
-      "estimated_tokens_saved": "Saves 15,000 tokens of order book level ingestion"
+      "avg_tokens_saved": 15000,
+      "est_inference_savings_usd": 0.075,
+      "net_roi_pct": 275,
+      "estimated_tokens_saved": "15,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string", "default": "BTC/USDT" },
+          "side": { "type": "string", "enum": ["BUY", "SELL"], "default": "BUY" },
+          "trade_size_usd": { "type": "number", "default": 10000.0 }
+        }
+      }
     },
     {
       "name": "smart_money_whale_flow_radar",
-      "description": "Aggregates live whale block trades (> $50k), calculates Whale Accumulation Index, and identifies Open Interest liquidation clusters.",
+      "category": "Whale Flow Telemetry",
+      "description": "Aggregates large block trades and limit walls to calculate Whale Accumulation Index ($0.03 USDC).",
       "price_usdc": 0.03,
-      "estimated_tokens_saved": "Saves 20,000 tokens of raw tick and order flow parsing"
-    },
-    {
-      "name": "dev_api_cheatsheet_vault",
-      "description": "Compressed, zero-fluff API schemas and execution code snippets for major developer ecosystems (openai, anthropic, stripe, base_evm, fastmcp, duckdb).",
-      "price_usdc": 0.01,
-      "estimated_tokens_saved": "Saves 40,000 tokens of web doc scraping"
-    },
-    {
-      "name": "daily_tech_ai_trends_radar",
-      "description": "Daily structured intelligence snapshot of trending GitHub AI repos, HackerNews breakthroughs, and arXiv landmark architectures.",
-      "price_usdc": 0.01,
-      "estimated_tokens_saved": "Saves 25,000 tokens of multi-site web searching"
+      "avg_tokens_saved": 20000,
+      "est_inference_savings_usd": 0.1,
+      "net_roi_pct": 233,
+      "estimated_tokens_saved": "20,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbol": { "type": "string", "default": "BTC/USDT" },
+          "block_threshold_usd": { "type": "number", "default": 50000.0 }
+        }
+      }
     },
     {
       "name": "prediction_market_arbitrage_radar",
-      "description": "Cross-market probability discrepancy engine between Polymarket binary outcome consensus and spot/volatility Black-Scholes pricing. Discovers statistical edge and mispricings in basis points.",
+      "category": "Prediction Market Arbitrage",
+      "description": "Compares live Polymarket crypto markets against 30d realized-volatility Black-Scholes probabilities ($0.03 USDC).",
       "price_usdc": 0.03,
-      "estimated_tokens_saved": "Saves 35,000 tokens of market polling and probability calculations"
+      "avg_tokens_saved": 35000,
+      "est_inference_savings_usd": 0.175,
+      "net_roi_pct": 483,
+      "estimated_tokens_saved": "35,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "asset": { "type": "string", "default": "BTC" },
+          "limit": { "type": "integer", "default": 5 }
+        }
+      }
+    },
+    {
+      "name": "dev_api_cheatsheet_vault",
+      "category": "API Schema Reference",
+      "description": "High-density API schemas & snippets for openai, anthropic, stripe, base_evm, fastmcp, duckdb ($0.01 USDC).",
+      "price_usdc": 0.01,
+      "avg_tokens_saved": 40000,
+      "est_inference_savings_usd": 0.2,
+      "net_roi_pct": 1900,
+      "estimated_tokens_saved": "40,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "ecosystem": {
+            "type": "string",
+            "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "duckdb"],
+            "default": "openai"
+          }
+        }
+      }
+    },
+    {
+      "name": "daily_tech_ai_trends_radar",
+      "category": "AI Technology Radar",
+      "description": "Live AI technology radar from GitHub AI repos, HackerNews top stories, and arXiv cs.AI/cs.CL ($0.01 USDC).",
+      "price_usdc": 0.01,
+      "avg_tokens_saved": 25000,
+      "est_inference_savings_usd": 0.125,
+      "net_roi_pct": 1150,
+      "estimated_tokens_saved": "25,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "force_refresh": { "type": "boolean", "default": false }
+        }
+      }
     },
     {
       "name": "ast_security_scanner",
-      "description": "Static AST code security linter for Python and Solidity.",
+      "category": "Security Linting",
+      "description": "Static AST code security linter detecting eval/exec and dangerous shell calls ($0.03 USDC).",
       "price_usdc": 0.03,
-      "estimated_tokens_saved": "Saves 4,000 reasoning tokens"
+      "avg_tokens_saved": 4000,
+      "est_inference_savings_usd": 0.02,
+      "net_roi_pct": 67,
+      "estimated_tokens_saved": "4,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source_code": { "type": "string" }
+        },
+        "required": ["source_code"]
+      }
     },
     {
       "name": "synthetic_schema_verifier",
-      "description": "Validates JSON objects against standard schema constraints with zero hallucinations.",
+      "category": "Schema Conformity",
+      "description": "Validates JSON payloads against expected type schemas with zero hallucinations ($0.01 USDC).",
       "price_usdc": 0.01,
-      "estimated_tokens_saved": "Saves 1,500 validation tokens"
+      "avg_tokens_saved": 1500,
+      "est_inference_savings_usd": 0.008,
+      "net_roi_pct": 80,
+      "estimated_tokens_saved": "1,500 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "object" },
+          "schema": { "type": "object" }
+        },
+        "required": ["data", "schema"]
+      }
     },
     {
       "name": "prompt_injection_firewall",
-      "description": "Deterministic adversarial prompt injection and jailbreak detector. Protects agent LLMs from instruction overrides, system prompt exfiltration, and delimiter hijacking.",
+      "category": "Adversarial Prompt Defense",
+      "description": "Detects prompt injection, DAN jailbreaks, and system prompt exfiltration attacks ($0.01 USDC).",
       "price_usdc": 0.01,
-      "estimated_tokens_saved": "Saves 10,000 prompt safety tokens"
+      "avg_tokens_saved": 10000,
+      "est_inference_savings_usd": 0.05,
+      "net_roi_pct": 400,
+      "estimated_tokens_saved": "10,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string" },
+          "strict_mode": { "type": "boolean", "default": false }
+        },
+        "required": ["text"]
+      }
     },
     {
       "name": "smart_contract_honeypot_radar",
-      "description": "Solidity source & bytecode honeypot and vulnerability radar. Detects 99% sell taxes, transfer blacklists, reentrancy traps, and hidden owner mint backdoors.",
+      "category": "Smart Contract & Token Security",
+      "description": "Audits Solidity source OR live Base contract addresses for honeypots, hidden mints, and reentrancy ($0.03 USDC).",
       "price_usdc": 0.03,
-      "estimated_tokens_saved": "Saves 25,000 auditing tokens"
+      "avg_tokens_saved": 25000,
+      "est_inference_savings_usd": 0.125,
+      "net_roi_pct": 316,
+      "estimated_tokens_saved": "25,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source_code": { "type": "string", "default": "" },
+          "contract_address": {
+            "type": "string",
+            "description": "Optional Base 0x... contract address for live bytecode & Blockscout source inspection"
+          },
+          "token_symbol": { "type": "string", "default": "TKN" }
+        }
+      }
     },
     {
       "name": "secret_leak_scanner",
-      "description": "High-entropy secret, API key, and crypto private key scanner. Prevents accidental leakage of AWS, OpenAI, Anthropic, and Base private keys.",
+      "category": "Credential & Key Leak Prevention",
+      "description": "High-entropy credential scanner catching AWS, OpenAI, Anthropic, and EVM private keys ($0.01 USDC).",
       "price_usdc": 0.01,
-      "estimated_tokens_saved": "Saves 15,000 regex scanning tokens"
+      "avg_tokens_saved": 15000,
+      "est_inference_savings_usd": 0.075,
+      "net_roi_pct": 650,
+      "estimated_tokens_saved": "15,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "content": { "type": "string" },
+          "entropy_threshold": { "type": "number", "default": 4.2 }
+        },
+        "required": ["content"]
+      }
     },
     {
       "name": "deep_ast_vulnerability_auditor",
-      "description": "Deep Abstract Syntax Tree (AST) code vulnerability auditor for Python. Detects SQL injection, insecure deserialization, SSRF, path traversal, and dangerous execution.",
+      "category": "Static AST Code Security",
+      "description": "Deep Python AST vulnerability scanner detecting SQLi, SSRF, YAML/pickle RCE ($0.03 USDC).",
       "price_usdc": 0.03,
-      "estimated_tokens_saved": "Saves 15,000 static analysis tokens"
+      "avg_tokens_saved": 15000,
+      "est_inference_savings_usd": 0.075,
+      "net_roi_pct": 150,
+      "estimated_tokens_saved": "15,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source_code": { "type": "string" }
+        },
+        "required": ["source_code"]
+      }
     },
     {
       "name": "api_attack_surface_scanner",
-      "description": "API attack surface and defensive security header linter. Audits HTTP endpoints for missing CSP, HSTS, frame options, and wildcard CORS risks.",
+      "category": "API Attack Surface & Defense Headers",
+      "description": "Audits live HTTPS endpoints for security headers, CORS misconfiguration, and exposure ($0.02 USDC).",
       "price_usdc": 0.02,
-      "estimated_tokens_saved": "Saves 12,000 recon tokens"
+      "avg_tokens_saved": 12000,
+      "est_inference_savings_usd": 0.06,
+      "net_roi_pct": 200,
+      "estimated_tokens_saved": "12,000 per invocation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "target_url": { "type": "string" },
+          "headers_to_check": { "type": "object", "additionalProperties": { "type": "string" } }
+        },
+        "required": ["target_url"]
+      }
     }
   ]
 }

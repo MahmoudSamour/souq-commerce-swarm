@@ -7,8 +7,14 @@ Allow: /.well-known/mcp.json
 Allow: /.well-known/agent-card.json
 Allow: /.well-known/agent.json
 Allow: /openapi.json
+Allow: /sitemap.xml
 Allow: /api/catalog
+Allow: /api/products
+Allow: /api/stats
+Allow: /api/cyber/threat-intel
 Allow: /api/tools/call
+Allow: /mcp
+Allow: /health
 
 # Explicitly invite LLM Search & AI Autonomous Crawlers
 User-agent: GPTBot

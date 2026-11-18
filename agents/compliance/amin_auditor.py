@@ -5,8 +5,10 @@ and pre-flight cryptographic clearance before any product or tool goes live.
 """
 
 import hashlib
+import hmac
 import json
-from typing import Dict, Any, List, Tuple
+import os
+from typing import Any, Dict, Optional, Tuple
 
 
 class AminAuditor:
@@ -15,42 +17,96 @@ class AminAuditor:
     Every product or dataset requires an Amin cryptographic clearance signature.
     """
 
-    def audit_product_concept(self, product_metadata: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
-        checks = {}
+    @staticmethod
+    def _get_signing_key() -> str:
+        return (
+            os.getenv("SOUQ_RECEIPT_SIGNING_KEY")
+            or os.getenv("SOUQ_API_KEY_PEPPER")
+            or "souq_sovereign_pepper_2026"
+        )
 
-        # 1. CFAA Safe Harbor Check
-        is_public_data = product_metadata.get("uses_public_data_only", True)
-        requires_login_bypass = product_metadata.get("bypasses_login", False)
-        checks["cfaa_safe_harbor"] = is_public_data and not requires_login_bypass
+    @staticmethod
+    def _strict_bool(
+        product_metadata: Dict[str, Any],
+        key: str,
+        default: Optional[bool] = None,
+    ) -> Optional[bool]:
+        """Returns strict bool value when present, default when absent, or None if non-bool."""
+        if key not in product_metadata:
+            return default
+        value = product_metadata[key]
+        return value if isinstance(value, bool) else None
+
+    def _sign_clearance(self, product_metadata: Dict[str, Any]) -> str:
+        """Signs canonical product metadata using keyed HMAC-SHA256."""
+        material = f"AMIN_APPROVED:{json.dumps(product_metadata, sort_keys=True, default=str)}"
+        return hmac.new(
+            self._get_signing_key().encode("utf-8"),
+            material.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+    def verify_clearance_token(self, product_metadata: Dict[str, Any], token: str) -> bool:
+        """Constant-time verification of an Amin clearance HMAC-SHA256 token."""
+        if (
+            not isinstance(product_metadata, dict)
+            or not isinstance(product_metadata.get("concept_id"), str)
+            or not product_metadata.get("concept_id", "").strip()
+            or not isinstance(token, str)
+            or not token
+        ):
+            return False
+        expected = self._sign_clearance(product_metadata)
+        return hmac.compare_digest(expected, token)
+
+    def audit_product_concept(self, product_metadata: Dict[str, Any]) -> Tuple[bool, Dict[str, Any]]:
+        if (
+            not isinstance(product_metadata, dict)
+            or not isinstance(product_metadata.get("concept_id"), str)
+            or not product_metadata.get("concept_id", "").strip()
+        ):
+            return False, {
+                "status": "REJECTED_COMPLIANCE_FAILURE",
+                "checks": {"valid_metadata": False},
+                "clearance_token": None,
+                "auditor": "Amin Chief Compliance Sentinel (SOUQ-DIV-5)",
+            }
+
+        checks: Dict[str, bool] = {"valid_metadata": True}
+
+        # 1. CFAA Safe Harbor Check (requires explicit boolean True for public data)
+        is_public_data = self._strict_bool(product_metadata, "uses_public_data_only", default=False) is True
+        no_login_bypass = self._strict_bool(product_metadata, "bypasses_login", default=False) is False
+        checks["cfaa_safe_harbor"] = is_public_data and no_login_bypass
 
         # 2. DMCA §1201 Non-Circumvention Check
-        bypasses_captcha = product_metadata.get("bypasses_captcha", False)
-        bypasses_tpm = product_metadata.get("bypasses_bot_protection", False)
-        checks["dmca_non_circumvention"] = not (bypasses_captcha or bypasses_tpm)
+        no_captcha_bypass = self._strict_bool(product_metadata, "bypasses_captcha", default=False) is False
+        no_tpm_bypass = self._strict_bool(product_metadata, "bypasses_bot_protection", default=False) is False
+        checks["dmca_non_circumvention"] = no_captcha_bypass and no_tpm_bypass
 
         # 3. GDPR / CCPA Zero-PII Guarantee
-        contains_pii = product_metadata.get("contains_pii", False)
-        checks["zero_pii_compliance"] = not contains_pii
+        checks["zero_pii_compliance"] = self._strict_bool(product_metadata, "contains_pii", default=False) is False
 
         # 4. Copyright Fact Doctrine (Feist Doctrine)
-        is_raw_math_or_clean_code = product_metadata.get("is_factual_or_original", True)
-        checks["copyright_cleared"] = is_raw_math_or_clean_code
+        checks["copyright_cleared"] = (
+            self._strict_bool(product_metadata, "is_factual_or_original", default=False) is True
+        )
 
         # 5. Financial Regulatory Safe Harbor (Pure Descriptive Analytics)
-        provides_trade_signals = product_metadata.get("claims_guaranteed_profit", False)
-        checks["sec_safe_harbor"] = not provides_trade_signals
+        checks["sec_safe_harbor"] = (
+            self._strict_bool(product_metadata, "claims_guaranteed_profit", default=False) is False
+        )
 
         # 6. AML / Sanctions & Restricted Source Quarantine (Binance Terms of Use Compliance)
-        from_restricted_source = product_metadata.get("is_restricted_source", False)
-        involves_unverified_p2p = product_metadata.get("unverified_third_party_funding", False)
-        checks["aml_sanctions_clearance"] = not (from_restricted_source or involves_unverified_p2p)
+        not_restricted = self._strict_bool(product_metadata, "is_restricted_source", default=False) is False
+        not_unverified_p2p = (
+            self._strict_bool(product_metadata, "unverified_third_party_funding", default=False) is False
+        )
+        checks["aml_sanctions_clearance"] = not_restricted and not_unverified_p2p
 
         all_passed = all(checks.values())
 
-        clearance_token = None
-        if all_passed:
-            material = f"AMIN_APPROVED:{json.dumps(product_metadata, sort_keys=True)}"
-            clearance_token = hashlib.sha256(material.encode("utf-8")).hexdigest()
+        clearance_token = self._sign_clearance(product_metadata) if all_passed else None
 
         return all_passed, {
             "status": "APPROVED" if all_passed else "REJECTED_COMPLIANCE_FAILURE",

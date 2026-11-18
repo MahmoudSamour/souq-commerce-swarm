@@ -10,6 +10,7 @@ Continuously synthesizes and updates threat intelligence signatures:
 import os
 import json
 import time
+import tempfile
 from typing import Dict, Any, List
 
 CACHE_FILE_PATH = os.path.join(
@@ -101,7 +102,7 @@ class CyberThreatIntelligenceRadar:
             {
                 "id": "SC-EXTREME-SELL-TAX",
                 "pattern": r"(?:sellFee|sellTax|transferTax)\s*=\s*(?:[3-9][0-9]|100)",
-                "rule_name": "EXTREME_SELL_TAX_TRAP",
+                "rule_name": "EXTREME_SELL_TAX",
                 "severity": "CRITICAL",
                 "description": "Sell tax set to >= 30%, stealing buyer exit liquidity."
             },
@@ -115,21 +116,21 @@ class CyberThreatIntelligenceRadar:
             {
                 "id": "SC-DYNAMIC-BLACKLIST",
                 "pattern": r"(?:isBlacklist(?:ed)?|blacklists?)\s*\[\s*(?:from|to)\s*\]\s*==\s*true",
-                "rule_name": "ARBITRARY_BLACKLIST_GATE",
+                "rule_name": "USER_BLACKLIST_GATE",
                 "severity": "HIGH",
                 "description": "Arbitrary blacklist mapping allows owner to prevent user selling."
             },
             {
                 "id": "SC-HIDDEN-MINT",
-                "pattern": r"function\s+mint\s*\([^)]*\)\s*(?:public|external)(?![^{]*require[^{]*owner)",
-                "rule_name": "UNPROTECTED_PUBLIC_MINT",
+                "pattern": r"function\s+mint\s*\([^)]*\)\s*(?:public|external)",
+                "rule_name": "HIDDEN_MINT",
                 "severity": "CRITICAL",
                 "description": "Public unprotected mint function allows arbitrary supply inflation."
             },
             {
                 "id": "SC-SELFDESTRUCT",
                 "pattern": r"selfdestruct\s*\(",
-                "rule_name": "SELFDESTRUCT_RUG_PULL",
+                "rule_name": "SELFDESTRUCT_BACKDOOR",
                 "severity": "CRITICAL",
                 "description": "Selfdestruct opcode allows creator to destroy contract and take all ETH."
             }
@@ -137,20 +138,26 @@ class CyberThreatIntelligenceRadar:
 
         # 3. Expanding High-Entropy Secret & Key Signatures
         secret_rules = [
-            ("OPENAI_PROJECT_KEY", r"sk-proj-[a-zA-Z0-9_\-]{40,}", "CRITICAL", "OpenAI Project API Key"),
-            ("ANTHROPIC_CLAUDE_KEY", r"sk-ant-[a-zA-Z0-9_\-]{32,}", "CRITICAL", "Anthropic Claude API Key"),
+            ("OPENAI_KEY", r"sk-proj-[a-zA-Z0-9_\-]{40,}", "CRITICAL", "OpenAI Project API Key"),
+            ("ANTHROPIC_KEY", r"sk-ant-[a-zA-Z0-9_\-]{32,}", "CRITICAL", "Anthropic Claude API Key"),
             ("HUGGINGFACE_KEY", r"hf_[a-zA-Z0-9]{34,}", "CRITICAL", "Hugging Face User Access Token"),
             ("GROQ_API_KEY", r"gsk_[a-zA-Z0-9]{48,}", "CRITICAL", "Groq Cloud Fast Inference API Key"),
             ("DEEPSEEK_KEY", r"sk-[a-f0-9]{32}", "CRITICAL", "DeepSeek API Key"),
             ("AWS_ACCESS_KEY", r"AKIA[0-9A-Z]{16}", "CRITICAL", "Amazon Web Services Access Key"),
-            ("BASE_EVM_PRIVATE_KEY", r"(?:0x)?[a-fA-F0-9]{64}", "CRITICAL", "Base / Ethereum 256-bit Private Key"),
+            (
+                "BASE_ETH_PRIVATE_KEY",
+                r"(?i)(?:priv(?:ate)?[_-]?key|signer[_-]?key|wallet[_-]?key|deployer[_-]?key|agent[_-]?key|secret[_-]?key|seed(?:_phrase)?|mnemonic|auth[_-]?key|signing[_-]?key)[\"']?\s*[:=]\s*[\"']?(?:0x)?[0-9a-fA-F]{64}\b",
+                "CRITICAL",
+                "Base / Ethereum 256-bit Private Key",
+            ),
             ("GITHUB_PAT", r"gh[pousr]_[A-Za-z0-9_]{36,}", "CRITICAL", "GitHub Personal Access Token"),
             ("TELEGRAM_BOT_TOKEN", r"[0-9]{9,10}:[a-zA-Z0-9_-]{35}", "CRITICAL", "Telegram Bot API Token"),
-            ("STRIPE_PROD_KEY", r"sk_live_[0-9a-zA-Z]{24,}", "CRITICAL", "Stripe Production Secret Key")
+            ("STRIPE_LIVE_KEY", r"sk_live_[0-9a-zA-Z]{24,}", "CRITICAL", "Stripe Production Secret Key")
         ]
 
         signatures = {
             "version": "2.0.0",
+            "schema_rev": 2,
             "last_updated_epoch": int(now),
             "generated_by": "Sayf Cyber Threat Intelligence Agent",
             "total_rules": len(prompt_injection_rules) + len(honeypot_rules) + len(secret_rules),
@@ -159,9 +166,21 @@ class CyberThreatIntelligenceRadar:
             "secret_rules": secret_rules
         }
 
-        # Write to cache
-        with open(self.cache_path, "w", encoding="utf-8") as f:
-            json.dump(signatures, f, indent=2)
+        # Write atomically to cache
+        cache_dir = os.path.dirname(os.path.abspath(self.cache_path))
+        os.makedirs(cache_dir, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(prefix=".cyber_sigs_", suffix=".tmp", dir=cache_dir)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(signatures, f, indent=2)
+            os.replace(tmp_path, self.cache_path)
+        except Exception:
+            if os.path.exists(tmp_path):
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+            raise
 
         return signatures
 
@@ -170,7 +189,9 @@ class CyberThreatIntelligenceRadar:
         if os.path.exists(self.cache_path):
             try:
                 with open(self.cache_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                if isinstance(data, dict) and data.get("schema_rev", 1) >= 2:
+                    return data
             except Exception:
                 pass
         return self.fetch_latest_threat_signatures()

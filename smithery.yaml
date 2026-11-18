@@ -3,18 +3,32 @@ startCommand:
   configSchema:
     type: object
     properties:
+      souqApiKey:
+        type: string
+        title: "SOUQ Prepaid API Key (Optional)"
+        description: "Prepaid X-API-Key minted via Base USDC (/api/credits/topup) for unlimited sub-cent calls without per-call wallet signing. Leave blank for 1 daily free evaluation call."
+      souqPaymentTx:
+        type: string
+        title: "Base USDC Transaction Hash (Optional)"
+        description: "One-off Base mainnet USDC transfer hash to settle an x402 call."
       endpoint:
         type: string
         default: "https://written-emera-arapython-bf7436a4.apps.mistral.run"
         description: "SOUQ Edge API endpoint"
-  commandFunction:
-    - npx
-    - -y
-    - souq-mcp
+  commandFunction: |-
+    (config) => ({
+      command: "npx",
+      args: ["-y", "souq-mcp"],
+      env: {
+        SOUQ_ENDPOINT: config.endpoint || "https://written-emera-arapython-bf7436a4.apps.mistral.run",
+        ...(config.souqApiKey ? { SOUQ_API_KEY: config.souqApiKey } : {}),
+        ...(config.souqPaymentTx ? { SOUQ_PAYMENT_TX: config.souqPaymentTx } : {})
+      }
+    })
 metadata:
   name: "souq-mcp"
   displayName: "SOUQ Agent Intelligence, Cyber Defense & Token-Saving Swarm"
-  description: "Sub-cent algorithmic MCP tools on Base L2: Prompt injection firewall, smart contract honeypot radar, secret leak detector, Polymarket arbitrage, 90% prompt token compressor, and whale flows."
+  description: "16+ autonomous MCP tools on Base L2: Prompt injection firewall, smart contract honeypot radar, secret leak scanner, live Polymarket arbitrage, JSON/HTML token compressor, and quant whale telemetry."
   icon: "https://written-emera-arapython-bf7436a4.apps.mistral.run/favicon.ico"
   tags:
     - mcp

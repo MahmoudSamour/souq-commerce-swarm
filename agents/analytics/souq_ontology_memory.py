@@ -8,13 +8,18 @@ Governed by Mas2 Bot Mandate:
 - Strictly isolated to /home/mm/Souq/souq-commerce-swarm with zero cross-repo bleed.
 """
 
-import os
 import json
 import uuid
+import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
-import duckdb
+
+from agents.treasury.db_backend import (
+    resolve_db_target,
+    db_transaction,
+    ensure_parent_dir,
+)
 
 logger = logging.getLogger("souq.ontology_memory")
 
@@ -30,15 +35,14 @@ class SouqOntologyMemoryEngine:
 
     def __init__(self, db_path: str = "data/souq_treasury_lake.duckdb"):
         self.db_path = db_path
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+        self.db_target, self.is_postgres = resolve_db_target(db_path)
+        if not self.is_postgres:
+            ensure_parent_dir(self.db_target)
         self._init_db()
 
-    def _get_connection(self) -> duckdb.DuckDBPyConnection:
-        return duckdb.connect(self.db_path)
-
-    def _init_db(self):
+    def _init_db(self) -> None:
         try:
-            with self._get_connection() as con:
+            with db_transaction(self.db_target, read_only=False) as con:
                 # 1. Past Milestones & Chronological Steps
                 con.execute("""
                     CREATE TABLE IF NOT EXISTS souq_milestones_and_memory (
@@ -89,6 +93,13 @@ class SouqOntologyMemoryEngine:
         except Exception as e:
             logger.error(f"Failed to initialize SOUQ ontology memory tables: {e}")
 
+    @staticmethod
+    def _entity_id(entity_type: str, canonical_identifier: str) -> str:
+        digest = hashlib.sha256(
+            f"{entity_type.strip().upper()}:{canonical_identifier.strip()}".encode("utf-8")
+        ).hexdigest()[:32]
+        return f"ENT-{entity_type[:3].upper()}-{digest}"
+
     def record_milestone(
         self,
         category: str,
@@ -106,7 +117,7 @@ class SouqOntologyMemoryEngine:
         date_str = cycle_date or now.strftime("%Y-%m-%d")
 
         try:
-            with self._get_connection() as con:
+            with db_transaction(self.db_target, read_only=False) as con:
                 con.execute("""
                     INSERT INTO souq_milestones_and_memory (
                         milestone_id, timestamp_utc, cycle_date, category,
@@ -133,18 +144,21 @@ class SouqOntologyMemoryEngine:
         metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         """Registers or updates a sovereign entity in SOUQ's ontology."""
-        entity_id = f"ENT-{entity_type[:3]}-{name.upper().replace(' ', '_')[:16]}"
+        entity_id = self._entity_id(entity_type, canonical_identifier)
         now = datetime.now(timezone.utc)
 
         try:
-            with self._get_connection() as con:
-                exists = con.execute("SELECT entity_id FROM souq_ontology_entities WHERE entity_id = ?", (entity_id,)).fetchone()
+            with db_transaction(self.db_target, read_only=False) as con:
+                exists = con.execute(
+                    "SELECT entity_id FROM souq_ontology_entities WHERE entity_id = ?",
+                    (entity_id,),
+                ).fetchone()
                 if exists:
                     con.execute("""
                         UPDATE souq_ontology_entities
-                        SET description = ?, metadata_json = ?, last_updated_utc = ?
+                        SET name = ?, description = ?, metadata_json = ?, last_updated_utc = ?
                         WHERE entity_id = ?
-                    """, (description, json.dumps(metadata or {}), now, entity_id))
+                    """, (name, description, json.dumps(metadata or {}), now, entity_id))
                 else:
                     con.execute("""
                         INSERT INTO souq_ontology_entities (
@@ -175,7 +189,7 @@ class SouqOntologyMemoryEngine:
         plan_id = f"PLN-{uuid.uuid4().hex[:8].upper()}"
 
         try:
-            with self._get_connection() as con:
+            with db_transaction(self.db_target, read_only=False) as con:
                 con.execute("""
                     INSERT INTO souq_future_plans (
                         plan_id, target_phase, priority, owner_agent,
@@ -196,7 +210,7 @@ class SouqOntologyMemoryEngine:
     def get_memory_timeline(self, limit: int = 50) -> List[Dict[str, Any]]:
         """Retrieves past steps in reverse chronological order."""
         try:
-            with self._get_connection() as con:
+            with db_transaction(self.db_target, read_only=True) as con:
                 rows = con.execute("""
                     SELECT milestone_id, timestamp_utc, cycle_date, category,
                            author_agent, title, summary, technical_delta,
@@ -228,9 +242,9 @@ class SouqOntologyMemoryEngine:
     def get_future_plans(self, status: Optional[str] = None) -> List[Dict[str, Any]]:
         """Retrieves registered future plans."""
         try:
-            with self._get_connection() as con:
+            with db_transaction(self.db_target, read_only=True) as con:
                 query = "SELECT plan_id, target_phase, priority, owner_agent, title, description, dependencies_json, status, target_completion_date FROM souq_future_plans"
-                params = ()
+                params: tuple = ()
                 if status:
                     query += " WHERE status = ?"
                     params = (status,)

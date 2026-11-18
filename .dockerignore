@@ -12,8 +12,16 @@
 .github
 .pytest_cache
 .venv
+.venv/
 __pycache__
 *.pyc
+*.tar.gz
+*.tgz
+*.zip
+*.token
+dist/
+build/
+*.egg-info/
 
 # Financial and sensitive data
 data/receipts/*.json

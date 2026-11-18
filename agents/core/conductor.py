@@ -4,25 +4,22 @@ Coordinates the autonomous commerce lifecycle: Discovery -> Compliance -> Synthe
 """
 
 import os
-import json
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from agents.discovery.opportunity_ranker import OpportunityRanker, ProductOpportunity
 from agents.discovery.market_researcher import MarketResearchAgent
 from agents.compliance.amin_auditor import AminAuditor
-from agents.production.mcp_tool_builder import (
-    MarketMicrostructureEngine,
-    ASTSecurityScanner,
-    PredictionMarketArbitrageRadar,
-)
+from agents.production.mcp_tool_builder import PredictionMarketArbitrageRadar
 from agents.production.dev_intelligence_vault import DailyTechTrendsRadar
 from agents.production.cyber_threat_intelligence import CyberThreatIntelligenceRadar
 from agents.distribution.munadi_herald import MunadiHerald
 from agents.treasury.crypto_receipt_engine import CryptoReceiptEngine
 from agents.treasury.x402_gateway import X402PaymentGateway
-from agents.treasury.polar_adapter import PolarAdapter
+from agents.treasury.polar_adapter import POLAR_PRODUCTS, PolarAdapter
 from agents.analytics.negotiation_tracker import NegotiationTracker
+from agents.analytics.souq_ontology_memory import SouqOntologyMemoryEngine
+from agents.analytics.traffic_telemetry import TrafficTelemetryEngine
 
 
 class RaisConductor:
@@ -36,6 +33,10 @@ class RaisConductor:
     6. Munadi: Discovery, AEO & Global Search Herald (المنادي)
     """
 
+    CONCEPT_POLAR_SKU: Dict[str, str] = {
+        "5Y_CRYPTO_LAKE": "crypto_5y_microstructure_lake",
+    }
+
     def __init__(self, db_path: str = "data/souq_treasury_lake.duckdb"):
         self.db_path = db_path
         self.ranker = OpportunityRanker()
@@ -47,7 +48,9 @@ class RaisConductor:
         self.herald = MunadiHerald()
         self.receipt_engine = CryptoReceiptEngine(db_path=db_path)
         self.negotiation_tracker = NegotiationTracker(db_path=db_path)
-        self.polar_adapter = PolarAdapter()
+        self.telemetry_engine = TrafficTelemetryEngine(db_path=db_path)
+        self.ontology_memory = SouqOntologyMemoryEngine(db_path=db_path)
+        self.polar_adapter = PolarAdapter(db_path=db_path)
         self.payment_gateway = X402PaymentGateway(
             receipt_engine=self.receipt_engine,
             negotiation_tracker=self.negotiation_tracker
@@ -87,24 +90,63 @@ class RaisConductor:
             }
         }
 
+    def _evaluate_fulfillment_readiness(
+        self,
+        concept_id: str,
+        polar_catalog: Dict[str, Any],
+    ) -> Tuple[bool, Optional[str], Optional[str]]:
+        """Checks whether a catalog concept is deliverable via live x402 APIs or configured Polar SKU."""
+        sku_id = self.CONCEPT_POLAR_SKU.get(concept_id)
+        if not sku_id:
+            return True, None, None
+
+        sku_entry = polar_catalog.get(sku_id, {})
+        if sku_entry.get("ready"):
+            return True, sku_id, None
+
+        spec = POLAR_PRODUCTS.get(sku_id, {})
+        asset_env = spec.get("asset_url_env")
+        if asset_env and not os.getenv(asset_env, "").strip():
+            return False, sku_id, f"{asset_env} not configured"
+        checkout_env = spec.get("checkout_url_env", "POLAR_CHECKOUT_URL")
+        product_env = spec.get("product_id_env", "POLAR_PRODUCT_ID")
+        return False, sku_id, f"{checkout_env} / {product_env} not configured"
+
     def run_daily_cycle(self, broadcast_search: bool = False) -> Dict[str, Any]:
         """
         Executes an end-to-end autonomous discovery, compliance, and listing cycle
         coordinated by the Team Lead directing all specialist agents.
         """
         timestamp = datetime.now(timezone.utc).isoformat()
+        core_degraded: List[str] = []
+        warnings: List[str] = []
 
         # Squad Agent 1: Sayf (Cyber Threat Intelligence Sentinel)
-        # Synthesizes dynamic threat intelligence signatures for hot-reloading
-        cyber_sigs = self.threat_radar.fetch_latest_threat_signatures()
+        try:
+            cyber_sigs = self.threat_radar.fetch_latest_threat_signatures()
+            if not isinstance(cyber_sigs, dict) or int(cyber_sigs.get("total_rules", 0) or 0) <= 0:
+                core_degraded.append("sayf_cyber_sentinel")
+        except Exception:
+            cyber_sigs = {"status": "error", "total_rules": 0}
+            core_degraded.append("sayf_cyber_sentinel")
 
         # Squad Agent 2: Kashif (AI & Tech Trends Intelligence Radar)
-        # Warms daily developer AI intelligence
-        tech_trends = self.trends_radar.refresh_cache_and_get(force_refresh=True)
+        try:
+            tech_trends = self.trends_radar.refresh_cache_and_get(force_refresh=True)
+            if tech_trends.get("status") == "upstream_unavailable":
+                warnings.append("kashif_tech_trends_upstream_unavailable")
+        except Exception:
+            tech_trends = {"status": "error", "trending_github_ai_repos": []}
+            warnings.append("kashif_tech_trends_error")
 
         # Squad Agent 3: Riyadi (Prediction & Microstructure Radar)
-        # Warms arbitrage and probability models
-        pred_arb = self.prediction_radar.scan_prediction_arbitrage("BTC")
+        try:
+            pred_arb = self.prediction_radar.scan_prediction_arbitrage("BTC")
+            if pred_arb.get("status") in ("error", "upstream_unavailable"):
+                warnings.append("riyadi_prediction_upstream_unavailable")
+        except Exception:
+            pred_arb = {"status": "error", "opportunities_analyzed": 0, "benchmark_spot_price": 0}
+            warnings.append("riyadi_prediction_error")
 
         # 1. Discovery & Opportunity Ranking (Kashif & OpportunityRanker)
         test_opportunities = [
@@ -222,35 +264,123 @@ class RaisConductor:
 
         ranked_opportunities = self.ranker.rank_opportunities(test_opportunities)
 
-        # 2. Compliance Auditing (Amin)
-        approved_catalog = []
+        # 2. Compliance Auditing (Amin) & Polar SKU Fulfillment Readiness
+        polar_catalog = self.polar_adapter.list_catalog()
+        approved_catalog: List[Dict[str, Any]] = []
+        pending_catalog: List[Dict[str, Any]] = []
         for opp in ranked_opportunities:
             meta = {
                 "concept_id": opp["concept_id"],
                 "uses_public_data_only": True,
                 "bypasses_login": False,
                 "bypasses_captcha": False,
+                "bypasses_bot_protection": False,
                 "contains_pii": False,
-                "is_factual_or_original": True
+                "is_factual_or_original": True,
+                "claims_guaranteed_profit": False,
+                "is_restricted_source": False,
+                "unverified_third_party_funding": False,
             }
             cleared, audit_result = self.auditor.audit_product_concept(meta)
-            if cleared:
-                opp["compliance_token"] = audit_result["clearance_token"]
+            if not cleared:
+                continue
+
+            fulfillment_ready, polar_sku, unready_reason = self._evaluate_fulfillment_readiness(
+                opp["concept_id"], polar_catalog
+            )
+            opp["compliance_token"] = audit_result["clearance_token"]
+            opp["fulfillment_ready"] = fulfillment_ready
+            if polar_sku:
+                opp["polar_sku"] = polar_sku
+
+            if fulfillment_ready:
                 approved_catalog.append(opp)
+            else:
+                opp["reason"] = unready_reason or "Fulfillment configuration pending"
+                pending_catalog.append(opp)
 
-        # 3. Market Research Review & Decision (Buhuth)
-        market_decision = self.researcher.review_catalog_and_decide(approved_catalog)
+        if not approved_catalog:
+            core_degraded.append("amin_compliance_empty_catalog")
 
-        # 4. Telemetry & Treasury Lake Summary (Sayrafi)
-        market_intel = self.negotiation_tracker.get_market_intelligence_summary()
+        # 3. Telemetry & Treasury Lake Summary (Sayrafi + Telemetry + Negotiation)
+        try:
+            market_intel = self.negotiation_tracker.get_market_intelligence_summary()
+            if "error" in market_intel:
+                core_degraded.append("negotiation_tracker_db")
+        except Exception:
+            market_intel = {"error": "negotiation_tracker_unavailable", "total_interactions": 0}
+            core_degraded.append("negotiation_tracker_db")
+
+        try:
+            traffic_summary = self.telemetry_engine.get_summary()
+            if "error" in traffic_summary:
+                core_degraded.append("traffic_telemetry_db")
+        except Exception:
+            traffic_summary = {"error": "traffic_telemetry_unavailable", "total_requests": 0}
+            core_degraded.append("traffic_telemetry_db")
+
+        # 4. Market Research Review & Decision (Buhuth)
+        market_decision = self.researcher.review_catalog_and_decide(
+            approved_catalog,
+            telemetry_summary=traffic_summary,
+            negotiation_stats=market_intel,
+        )
+
+        # 5. Sovereign Ontology & Milestone Memory Sync
+        ontology_status: Dict[str, Any]
+        try:
+            conductor_entity_id = self.ontology_memory.upsert_entity(
+                name="Ra'is Autonomous Conductor",
+                entity_type="AGENT",
+                canonical_identifier="souq.agent.rais_conductor",
+                description="Executive swarm conductor coordinating discovery, compliance, research, and distribution.",
+                metadata={
+                    "active_catalog_count": len(approved_catalog),
+                    "pending_catalog_count": len(pending_catalog),
+                    "total_threat_rules": int(cyber_sigs.get("total_rules", 0) or 0),
+                },
+            )
+            recent_milestones = self.ontology_memory.get_memory_timeline(limit=5)
+            planned_roadmap = self.ontology_memory.get_future_plans(status="PLANNED")
+            ontology_status = {
+                "status": "active",
+                "conductor_entity_id": conductor_entity_id,
+                "recent_milestones_count": len(recent_milestones),
+                "planned_roadmap_count": len(planned_roadmap),
+            }
+        except Exception:
+            ontology_status = {"status": "error"}
+            core_degraded.append("souq_ontology_memory")
 
         # Squad Agent 6: Munadi (Herald & AEO Distribution)
-        herald_audit = self.herald.verify_public_discovery_endpoints()
+        try:
+            herald_audit = self.herald.verify_public_discovery_endpoints()
+        except Exception as exc:
+            herald_audit = {"overall_status": "DEGRADED", "error": str(exc), "endpoints": []}
+        if herald_audit.get("overall_status") != "ONLINE_AND_DISCOVERABLE":
+            warnings.append("munadi_public_endpoints_degraded")
+
         herald_index = self.herald.broadcast_to_indexnow() if broadcast_search else {"status": "SKIPPED_LOCAL_TEST"}
+        if broadcast_search and herald_index.get("status") == "error":
+            warnings.append("munadi_indexnow_error")
+
+        overall_status = "DEGRADED" if core_degraded else "OPERATIONAL_AND_REVENUE_READY"
+        degraded_components = list(dict.fromkeys(core_degraded + warnings))
+        polar_ready_count = sum(1 for info in polar_catalog.values() if info.get("ready"))
+
+        sanitized_traffic = {
+            "total_requests": int(traffic_summary.get("total_requests", 0) or 0),
+            "unique_visitors": int(traffic_summary.get("unique_visitors", 0) or 0),
+            "client_categories": traffic_summary.get("client_categories", {}),
+            "billing_funnel": traffic_summary.get("billing_funnel", {}),
+            "top_tools": traffic_summary.get("top_tools", []),
+        }
 
         return {
             "cycle_timestamp": timestamp,
-            "status": "OPERATIONAL_AND_REVENUE_READY",
+            "status": overall_status,
+            "degraded_components": degraded_components,
+            "warnings": warnings,
             "team_lead": {
                 "name": "Ra'is (الرئيس)",
                 "role": "Supreme Autonomous Update Team Lead",
@@ -259,7 +389,7 @@ class RaisConductor:
             },
             "cybersecurity_intelligence": {
                 "sentinel": "Sayf",
-                "status": "ACTIVE_AND_REGULARLY_UPDATED",
+                "status": "DEGRADED" if "sayf_cyber_sentinel" in core_degraded else "ACTIVE_AND_REGULARLY_UPDATED",
                 "version": cyber_sigs.get("version", "2.0.0"),
                 "total_threat_rules": cyber_sigs.get("total_rules", 0),
                 "prompt_injection_rules": len(cyber_sigs.get("prompt_injection_rules", [])),
@@ -268,24 +398,38 @@ class RaisConductor:
             },
             "tech_ai_trends": {
                 "radar": "Kashif",
+                "status": tech_trends.get("status", "success"),
                 "digest_date": tech_trends.get("digest_date"),
-                "total_trending_topics": len(tech_trends.get("trending_ai_repos", []))
+                "data_source": tech_trends.get("data_source", "curated"),
+                "total_trending_topics": len(tech_trends.get("trending_github_ai_repos", []))
             },
             "prediction_arbitrage": {
                 "quant": "Riyadi",
+                "status": pred_arb.get("status", "success"),
                 "markets_analyzed": pred_arb.get("opportunities_analyzed", 0),
                 "benchmark_spot": pred_arb.get("benchmark_spot_price", 0)
             },
             "active_catalog": approved_catalog,
+            "pending_catalog": pending_catalog,
+            "polar_catalog_readiness": {
+                sku: bool(info.get("ready", False)) for sku, info in polar_catalog.items()
+            },
             "market_research": market_decision,
             "market_intelligence": market_intel,
+            "traffic_telemetry": sanitized_traffic,
+            "ontology_memory": ontology_status,
             "herald_distribution": {
                 "endpoints_health": herald_audit.get("overall_status"),
                 "indexnow": herald_index
             },
             "payment_rails": {
                 "rail_a_agent_crypto": "ACTIVE (HTTP 402 + Base USDC)",
-                "rail_b_human_mor": "ACTIVE (Polar.sh Merchant of Record)"
+                "rail_b_human_mor": (
+                    f"ACTIVE (Polar.sh Merchant of Record, {polar_ready_count} SKUs ready)"
+                    if polar_ready_count > 0
+                    else "PENDING_SKU_CONFIGURATION (Polar.sh Merchant of Record)"
+                ),
+                "rail_c_prepaid_api_key": "ACTIVE (X-API-Key DuckDB Credit Ledger)"
             }
         }
 

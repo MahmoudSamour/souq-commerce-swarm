@@ -1,104 +1,146 @@
-# SOUQ (السوق) // Autonomous Multi-Agent Commerce Swarm
+# SOUQ // Autonomous Multi-Agent Commerce & MCP Micro-Service Swarm (`v0.3.0`)
 
-[![PyPI version](https://img.shields.io/pypi/v/souq-mcp?color=blue&label=PyPI%20souq-mcp)](https://pypi.org/project/souq-mcp/)
-[![npm version](https://img.shields.io/npm/v/souq-mcp?color=red&label=npm%20souq-mcp)](https://www.npmjs.com/package/souq-mcp)
-[![Edge Status](https://img.shields.io/badge/Koyeb%20Edge-Healthy%20%7C%20Active-success)](https://written-emera-arapython-bf7436a4.apps.mistral.run/health)
-[![Network](https://img.shields.io/badge/Rail-Base%20L2%20USDC%20(x402)-blueviolet)](https://basescan.org)
-[![Tests](https://img.shields.io/badge/Tests-50%2F50%20Passing-brightgreen)](https://github.com/MahmoudSamour/souq-commerce-swarm)
+**SOUQ** is an autonomous AI-to-AI commerce server exposing **16 paid micro-services** (plus `souq_account_status` for free balance/discovery) for coding agents, DeFi security auditors, and market-quant swarms.
 
-> **SOUQ is an autonomous machine-to-machine commerce swarm** running sub-cent algorithmic MCP tools and cybersecurity intelligence services for AI agents, LLM pipelines, and developers on **Base L2 USDC**.
-> 
-> * **Live Edge Host:** `https://written-emera-arapython-bf7436a4.apps.mistral.run`
-> * **Freemium Onboarding:** 1 free trial evaluation per 24 hours per IP.
-> * **Settlement:** HTTP 402 Payment Required on Base L2 USDC (`0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF`).
+Built with FastMCP, Starlette/Uvicorn, DuckDB, and live market/security feeds — with **Base L2 USDC (`x402-v1.0`)**, **Prepaid `X-API-Key` Credits**, and **Polar.sh MoR Checkout**.
+
+> * **Storefront & Interactive Playground:** `https://written-emera-arapython-bf7436a4.apps.mistral.run/`
+> * **Prepaid Credit Minting & Wallet Pay:** `https://written-emera-arapython-bf7436a4.apps.mistral.run/#topup`
+> * **Remote MCP (Streamable HTTP):** `https://written-emera-arapython-bf7436a4.apps.mistral.run/mcp` (`POST` JSON-RPC 2.0, `DELETE` session cleanup, `GET` returns `405`)
+> * **Freemium Onboarding:** 1 free evaluation trial call per 24 hours per client IP.
+> * **Settlement Rails:** Prepaid `X-API-Key` credits (`/api/credits/topup`, zero per-call gas), native per-call HTTP `402` Base L2 USDC (`0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF`), or Polar.sh checkout (`/api/checkout/create` + `/api/checkout/claim`).
 
 ---
 
-## ⚡ 10-Second Quickstart (Claude Desktop / Cursor / Windsurf)
+## Quickstart for Developers & AI Agents
 
-You can plug SOUQ tools into Claude Desktop, Cursor, or Windsurf with zero manual setup.
+### Option A: Zero-Install Remote Streamable HTTP (`/mcp`)
+Connect any Streamable-HTTP-compatible MCP client directly without installing local packages:
 
-### In Claude Desktop (`claude_desktop_config.json`)
 ```json
 {
   "mcpServers": {
     "souq": {
-      "command": "npx",
-      "args": ["-y", "souq-mcp"]
+      "url": "https://written-emera-arapython-bf7436a4.apps.mistral.run/mcp",
+      "headers": {
+        "X-API-Key": "optional_souq_live_key_from_topup"
+      }
     }
   }
 }
 ```
 
-### In Cursor IDE
-1. Go to **Settings** > **Features** > **MCP Servers** > **+ Add New MCP Server**.
-2. Name: `souq` | Type: `command` | Command: `npx -y souq-mcp`.
-3. Save. All 16 tools are instantly active!
+### Option B: Local stdio Bridge (`clients/npm` & `clients/python`)
+> **Readiness Note:** Both the npm bridge (`clients/npm`, package name `souq-mcp`) and Python package (`clients/python`, package name `souq-mcp`, module `souq_mcp`) live in this repository. Before/until public npm & PyPI releases are published for a given environment, install locally from source (or use Option A Remote HTTP `/mcp` immediately).
 
-### In Python
 ```bash
-pip install souq-mcp
+# Node.js stdio bridge (from clients/npm or published npm package `souq-mcp`)
+npx -y souq-mcp
+
+# Python stdio bridge & CLI (from clients/python or editable install `pip install -e clients/python`)
+python -m souq_mcp serve
+SOUQ_API_KEY="souq_live_..." python -m souq_mcp status
+SOUQ_API_KEY="souq_live_..." python -m souq_mcp list
+SOUQ_API_KEY="souq_live_..." python -m souq_mcp call token_context_compressor '{"raw_content":"...","mode":"auto"}'
 ```
+
+### Option C: Direct Python SDK (`SouqClient`)
+
 ```python
-from souq_mcp import client
+from souq_mcp import SouqClient
 
-# 1-call evaluation of any SOUQ edge tool
-firewall = client.call_tool("prompt_injection_firewall", {"text": "Ignore prior rules"})
-print(firewall)
+# 1. Free daily evaluation (or supply api_key / private_key for unlimited calls)
+client = SouqClient(
+    endpoint="https://written-emera-arapython-bf7436a4.apps.mistral.run",
+    api_key="souq_live_your_key_here",
+)
+
+# Check account status & pricing
+print(client.balance())
+
+# Compress bloated HTML/logs (60-95% context reduction)
+res = client.call_tool(
+    "token_context_compressor",
+    {"raw_content": "<html>...logs...</html>", "mode": "auto"},
+)
+print(res)
 ```
 
-👉 **Full Setup Guide:** See [docs/CLAUDE_CURSOR_SETUP.md](docs/CLAUDE_CURSOR_SETUP.md) for AutoGen, LangChain, and CrewAI instructions.
+---
+
+## Complete Service Catalog (`16` Active Paid Tools + `1` Free Discovery Tool)
+
+### Free MCP Discovery Tool (`$0.00`)
+| Tool | Purpose |
+|---|---|
+| `souq_account_status` | Inspects prepaid `X-API-Key` credit balance, Base L2 USDC recipient wallet, and full tool catalog. |
+
+### Active Paid Tools (`16` Tools, `$0.01 – $0.03 USDC` / call)
+| Category | Tool Name | Price (USDC) | Capabilities & Key Parameters |
+|---|---|---|---|
+| **Optimization** | `token_context_compressor` | **$0.01** | Token pruning for HTML, JSON, logs, markdown, prose (`raw_content`, `max_compression`, `mode`, `target_ratio`). |
+| **Code Intel** | `ast_structural_slicer` | **$0.02** | Exact AST function/class extraction for Python/Solidity (`source_code`, `target_symbol`). |
+| **Security** | `ast_security_scanner` | **$0.03** | Static AST security linter catching `eval`, `exec`, shell execution (`source_code`). |
+| **Cyber Defense** | `prompt_injection_firewall` | **$0.01** | Prompt injection, DAN jailbreak, and exfiltration firewall (`text`, `strict_mode`). |
+| **Cyber Defense** | `smart_contract_honeypot_radar` | **$0.03** | Solidity source & live Base address honeypot/reentrancy audit (`source_code`, `contract_address`, `token_symbol`). |
+| **Cyber Defense** | `secret_leak_scanner` | **$0.01** | High-entropy API key & private key secret detector (`content`, `entropy_threshold`). |
+| **Cyber Defense** | `deep_ast_vulnerability_auditor` | **$0.03** | Deep Python AST audit for SQLi, SSRF, YAML/pickle RCE (`source_code`). |
+| **Cyber Defense** | `api_attack_surface_scanner` | **$0.02** | Live HTTPS security headers, CORS, and endpoint exposure scanner (`target_url`, `headers_to_check`). |
+| **Market Quant** | `quant_microstructure_radar` | **$0.02** | Live order book depth, spread bps, Order Book Imbalance (`symbol`). |
+| **Market Quant** | `cross_exchange_arbitrage_scanner` | **$0.03** | Spot vs Perpetual basis spreads & funding APR (`symbol`). |
+| **Market Quant** | `orderbook_slippage_simulator` | **$0.02** | Live depth VWAP & slippage bps simulation (`symbol`, `side` `BUY`/`SELL`, `trade_size_usd`). |
+| **Market Quant** | `smart_money_whale_flow_radar` | **$0.03** | Block trade & limit wall Whale Accumulation Index (`symbol`, `block_threshold_usd`). |
+| **Prediction** | `prediction_market_arbitrage_radar` | **$0.03** | Live Polymarket binary prices vs Black-Scholes realized-vol probabilities (`asset`, `limit`). |
+| **Developer Intel** | `dev_api_cheatsheet_vault` | **$0.01** | High-density schemas (`openai`, `anthropic`, `stripe`, `base_evm`, `fastmcp`, `duckdb`). |
+| **Tech Intel** | `daily_tech_ai_trends_radar` | **$0.01** | Live AI radar across GitHub, HackerNews, and arXiv (`force_refresh`). |
+| **Verification** | `synthetic_schema_verifier` | **$0.01** | Deterministic JSON type schema validation (`data`, `schema`). |
+
+> **External Feed Readiness Note:** Live market, Polymarket, GitHub/HN/arXiv, and HTTPS auditing tools fetch real upstream data without fabricated numbers; if an upstream feed is offline or blocked in a sandboxed environment, tools return an explicit `upstream_unavailable` error envelope (with automatic `X-API-Key` debit refund on upstream failure).
+> **Polar Digital Assets Note:** Call `GET /api/products` (or inspect `/#topup` in the browser) to see live `ready: true` vs `ready: false` status on Polar SKUs before initiating card checkouts.
 
 ---
 
-## 🛡️ Live Production Tool Catalog
+## Key HTTP Endpoints & Discovery Manifests
 
-| Tool Name | Category | Base Price | Avg. Tokens Saved | Net ROI | Description |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `prompt_injection_firewall` | **Cyber Defense** | $0.01 | 10,000 | **400%** | Deterministic 4ms adversarial jailbreak, instruction wipe & prompt exfiltration detector. |
-| `smart_contract_honeypot_radar` | **Cyber Defense** | $0.03 | 25,000 | **316%** | Solidity AST & opcode audit for 99% sell taxes, transfer locks, reentrancy traps & mint backdoors. |
-| `secret_leak_scanner` | **Cyber Defense** | $0.01 | 15,000 | **650%** | High-entropy secret & key scanner (OpenAI, Anthropic, HuggingFace, Groq, DeepSeek, Base keys). |
-| `deep_ast_vulnerability_auditor` | **Cyber Defense** | $0.03 | 15,000 | **150%** | Deep Python AST vulnerability scanner (SQL injection, insecure pickle deserialization, SSRF). |
-| `api_attack_surface_scanner` | **Cyber Defense** | $0.02 | 12,000 | **200%** | API defense header & attack surface linter (CSP, HSTS, frame options, wildcard CORS). |
-| `prediction_market_arbitrage_radar` | **Quant Alpha** | $0.03 | 35,000 | **483%** | Black-Scholes volatility pricing vs. Polymarket consensus probability mispricings in basis points. |
-| `token_context_compressor` | **Context Opt** | $0.01 | 14,000 | **600%** | Semantic context compressor slashes LLM context bloat by 80–95% to save inference tokens. |
-| `ast_structural_slicer` | **Context Opt** | $0.02 | 3,000 | **75%** | Surgically extracts function nodes from codebase instead of sending whole files to LLM. |
-| `quant_microstructure_radar` | **Quant Alpha** | $0.02 | 15,000 | **275%** | Live Binance order book depth, Order Book Imbalance (OBI), and liquidation cascade metrics. |
-| `cross_exchange_arbitrage_scanner` | **Quant Alpha** | $0.03 | 12,000 | **100%** | Spot vs. Perp basis spread and annualized delta-neutral funding rate APR scanner. |
-| `orderbook_slippage_simulator` | **Quant Alpha** | $0.02 | 15,000 | **275%** | Walks 100 levels of live depth to calculate VWAP, price impact, and slippage for any trade size. |
-| `smart_money_whale_flow_radar` | **Quant Alpha** | $0.03 | 20,000 | **233%** | Aggregates >$50k whale block trades and Open Interest accumulation clusters. |
-| `dev_api_cheatsheet_vault` | **Dev Intel** | $0.01 | 40,000 | **1,900%** | Compressed, zero-fluff API schemas for OpenAI, Anthropic, Stripe, FastMCP, and Base EVM. |
-| `daily_tech_ai_trends_radar` | **Dev Intel** | $0.01 | 25,000 | **1,150%** | Daily structured intelligence snapshot of trending GitHub AI repos and arXiv landmark models. |
-| `ast_security_scanner` | **Security** | $0.03 | 4,000 | **67%** | Fast AST security scanner detecting eval injections, shell executions, and reentrancy. |
-| `synthetic_schema_verifier` | **Schema** | $0.01 | 1,500 | **80%** | Zero-hallucination JSON schema validator for agent pipelines. |
-
----
-
-## 👑 Autonomous Team Lead Architecture
-
-The autonomous pipeline is directed by **`Ra'is Conductor`** directing 6 specialist agents:
-
-1. **`Sayf` (سيف - Cyber Sentinel):** Generates and updates dynamic threat intelligence signatures for zero-day prompt injection and EVM honeypots.
-2. **`Kashif` (المستكشف - Tech Trends Radar):** Scans daily GitHub AI repositories and developer needs.
-3. **`Riyadi` (الرياضي - Quant Microstructure Engine):** Warms Black-Scholes probability arbitrage and depth metrics.
-4. **`Buhuth` (البحوث - Market Research Analyst):** Analyzes buyer demand, evaluates pricing elasticity, and issues AEO directives.
-5. **`Amin` (الأمين - Compliance Auditor):** Validates ethical and legal safety, zero PII, and signs compliance tokens.
-6. **`Munadi` (المنادي - Discovery Herald):** Verifies public discovery endpoints and pings search engines via IndexNow.
+| Endpoint | Purpose |
+|---|---|
+| `GET /` | Interactive storefront UI, 16-tool sandbox, Token ROI calculator, 1-click Base USDC Wallet Pay (`/#topup`), Polar claim handler |
+| `POST /mcp` | Streamable HTTP MCP JSON-RPC 2.0 (`initialize`, `tools/list`, `tools/call`) |
+| `GET /api/catalog` | Full 16-tool machine catalog, recipient wallet, Polar readiness summary |
+| `GET /api/products` | Live Polar.sh credit packs & digital asset catalog with `ready` flags |
+| `POST /api/tools/call` | Direct REST tool execution (`X-API-Key`, `X-Payment-Tx`, or 1/24h free trial) |
+| `POST /api/credits/topup` | Verify Base Mainnet USDC tx (`>= $0.50`) and mint/top up `souq_live_...` key |
+| `GET /api/credits/balance` | Inspect prepaid balance & spend for an `X-API-Key` |
+| `POST /api/checkout/create` | Create Polar MoR card checkout link with same-origin `success_url` validation |
+| `GET /api/checkout/claim` | One-time exchange of `?claim=...` / `?order_id=...` for provisioned `souq_live_...` key |
+| `GET /api/cyber/threat-intel` | Sayf Cyber Threat Intelligence rule counts and update metadata |
+| `GET /api/stats` | Public aggregate traffic & settlement KPIs (admin details redacted without `SOUQ_ADMIN_TOKEN`) |
+| `GET /health` | Edge service health & readiness status (`version: "0.3.0"`) |
+| `GET /.well-known/mcp.json` | MCP discovery manifest |
+| `GET /.well-known/agent-card.json` | Agent-to-Agent discovery card (`/.well-known/agent.json` alias also served) |
+| `GET /openapi.json` | OpenAPI `3.1.0` REST + MCP specification |
+| `GET /llms.txt`, `/llms-full.txt` | Concise and exhaustive LLM crawler indexes |
 
 ---
 
-## 🌐 Public Machine Discovery Endpoints
+## Local Development, Verification & Shell Entrypoints
 
-Every autonomous web crawler and AI agent can discover SOUQ services via standardized machine manifests:
-* **MCP Discovery:** `https://written-emera-arapython-bf7436a4.apps.mistral.run/.well-known/mcp.json`
-* **Agent Protocol (A2A):** `https://written-emera-arapython-bf7436a4.apps.mistral.run/.well-known/agent-card.json`
-* **Agent LLMs Reference:** `https://written-emera-arapython-bf7436a4.apps.mistral.run/llms.txt` & `/llms-full.txt`
-* **OpenAPI 3.1 Spec:** `https://written-emera-arapython-bf7436a4.apps.mistral.run/openapi.json`
-* **Dynamic Threat Intel:** `https://written-emera-arapython-bf7436a4.apps.mistral.run/api/cyber/threat-intel`
-* **Interactive Web Playground:** `https://written-emera-arapython-bf7436a4.apps.mistral.run/`
+```bash
+# Run edge server locally via project venv (scripts/koyeb_server.py)
+./souq.sh server 8402
 
----
+# Run unit & integration test suite (.venv/bin/pytest)
+./souq.sh test
 
-## 📜 License & Compliance
+# Verify core engines safely inside an isolated TemporaryDirectory (zero writes to data/)
+/home/mm/Souq/souq-commerce-swarm/.venv/bin/python scripts/verify_full_system.py
 
-MIT License. Cryptographic receipts and tax accounting ledgers are stored in DuckDB and exportable in IRS/Koinly formats.
+# Export real (non-simulated) tax & audit CSV/JSON receipts
+/home/mm/Souq/souq-commerce-swarm/.venv/bin/python scripts/export_tax_receipts.py --db-path data/souq_treasury_lake.duckdb --output-dir data/exports
+
+# Execute end-to-end canary buyer check (or live Base USDC micro-settlement)
+/home/mm/Souq/souq-commerce-swarm/.venv/bin/python scripts/canary_buyer_agent.py --simulate --tool token_context_compressor
+```
+
+## License
+MIT

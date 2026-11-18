@@ -51,3 +51,29 @@ def helper_beta():
     assert "helper_beta" not in res["sliced_code"]
     assert res["tokens_saved"] > 0
 
+
+def test_token_compressor_json_and_log_dedup():
+    import json
+    compressor = TokenContextCompressor()
+
+    bloated_json = json.dumps({
+        "metadata": {"empty_note": "", "unused": None, "nested_empty": {}},
+        "events": [
+            {"id": i, "symbol": "BTC/USDT", "price": 90000 + i, "note": ""}
+            for i in range(6)
+        ],
+    }, indent=2)
+    j_res = compressor.compress_text_or_json(bloated_json)
+    assert j_res["status"] == "success"
+    assert j_res["content_mode"] == "json_structured"
+    assert j_res["tokens_saved"] > 0
+    assert "__cols__" in j_res["compressed_payload"]
+    assert "empty_note" not in j_res["compressed_payload"]
+
+    repeated_logs = "\n".join(["INFO Connection timeout retrying..." for _ in range(10)])
+    l_res = compressor.compress_text_or_json(repeated_logs)
+    assert l_res["content_mode"] == "text_cleaned"
+    assert "[x10]" in l_res["compressed_payload"]
+    assert l_res["tokens_saved"] > 0
+
+

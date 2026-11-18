@@ -4,15 +4,15 @@ build-backend = "hatchling.build"
 
 [project]
 name = "souq-mcp"
-version = "0.2.0"
-description = "Official 1-line MCP client & Python SDK for SOUQ autonomous micro-service and token-saving engine"
+version = "0.3.0"
+description = "Official 1-line MCP client & Python SDK for SOUQ autonomous micro-services (x402 Base USDC + Prepaid API Keys)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [
     { name = "SOUQ Autonomous Commerce Swarm", email = "dev@souq-swarm.ai" }
 ]
-keywords = ["mcp", "ai-agents", "llm", "token-compression", "crypto-arbitrage", "base-l2", "x402"]
+keywords = ["mcp", "model-context-protocol", "ai-agents", "llm", "token-compression", "crypto-arbitrage", "base-l2", "x402"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -20,6 +20,10 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://written-emera-arapython-bf7436a4.apps.mistral.run"
+Repository = "https://github.com/MahmoudSamour/souq-commerce-swarm"
 
 [project.optional-dependencies]
 wallet = [

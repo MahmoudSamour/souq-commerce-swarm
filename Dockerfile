@@ -10,18 +10,27 @@ ENV PYTHONPATH=/app
 
 WORKDIR /app
 
-# Install system build dependencies and curl
+# Install lean runtime dependency (curl for healthcheck); binary wheels suffice without gcc
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user and writable data directories
+RUN groupadd --gid 10001 souq \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin souq \
+    && mkdir -p /app/data/receipts /app/data/exports /app/data/cache \
+    && chown -R souq:souq /app
 
 # Install dependencies
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application source
-COPY . /app/
+COPY --chown=souq:souq . /app/
+RUN mkdir -p /app/data/receipts /app/data/exports /app/data/cache \
+    && chown -R souq:souq /app/data
+
+USER souq
 
 # Expose Koyeb port
 EXPOSE 8000

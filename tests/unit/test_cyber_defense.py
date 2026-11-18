@@ -154,10 +154,10 @@ def test_dynamic_honeypot_and_secret_detection():
     assert "GROQ_API_KEY" in types
 
 
-def test_team_lead_update_agent_coordination():
+def test_team_lead_update_agent_coordination(tmp_path):
     from agents.core.conductor import AutonomousUpdateTeamLead, RaisConductor
     assert AutonomousUpdateTeamLead is RaisConductor
-    team_lead = AutonomousUpdateTeamLead()
+    team_lead = AutonomousUpdateTeamLead(db_path=str(tmp_path / "team_lead.duckdb"))
     assert len(team_lead.team_squad) == 6
     assert "sayf_cyber_sentinel" in team_lead.team_squad
     assert "kashif_tech_radar" in team_lead.team_squad

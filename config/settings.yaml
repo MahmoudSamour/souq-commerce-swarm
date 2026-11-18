@@ -9,6 +9,8 @@ system:
 
 database:
   path: "data/souq_treasury_lake.duckdb"
+  duckdb_memory_limit: "96MB"
+  duckdb_threads: 1
   backup_interval_hours: 6
 
 logging:
@@ -31,9 +33,12 @@ settlement:
     rpc_url: "https://mainnet.base.org"
     confirmation_blocks: 1
     max_tx_age_seconds: 180
+    max_topup_tx_age_seconds: 86400
   polar:
     base_url: "https://api.polar.sh/v1"
     mor_protection: true
+    webhook_replay_window_seconds: 300
+    claim_ttl_hours: 24
 
 compliance:
   zero_pii_enforced: true

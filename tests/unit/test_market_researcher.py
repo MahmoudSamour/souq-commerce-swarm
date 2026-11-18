@@ -37,11 +37,14 @@ def test_market_research_review_and_directive():
     assert "strategic_verdict" in directive
 
 
-def test_conductor_integrates_market_researcher():
-    conductor = RaisConductor()
+def test_conductor_integrates_market_researcher(tmp_path):
+    conductor = RaisConductor(db_path=str(tmp_path / "conductor_mr.duckdb"))
     report = conductor.run_daily_cycle()
     assert report["status"] == "OPERATIONAL_AND_REVENUE_READY"
+    assert report["tech_ai_trends"]["total_trending_topics"] >= 2
     assert "market_research" in report
     mr = report["market_research"]
     assert mr["status"] == "REVIEW_COMPLETE"
     assert "market_directive" in mr
+    pt = mr["market_directive"]["prioritized_tools"]
+    assert len(pt) == len(set(pt))

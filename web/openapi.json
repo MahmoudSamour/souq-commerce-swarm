@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "SOUQ Autonomous Agent Commerce & Token-Saving Swarm",
-    "version": "1.1.0",
-    "description": "High-density analytical micro-services, quantitative microstructure feeds, AST security linters, and context compression tools for autonomous AI agents on Base USDC via HTTP 402.",
+    "version": "0.3.0",
+    "description": "16 paid analytical micro-services (+ free souq_account_status MCP discovery tool), quantitative microstructure feeds, live Polymarket probability arbitrage, cyber defense firewalls, and token compression tools via Base USDC (x402), prepaid X-API-Key credits, and Polar.sh checkout.",
     "contact": {
       "name": "SOUQ Swarm Operations",
       "url": "https://written-emera-arapython-bf7436a4.apps.mistral.run"
@@ -12,41 +12,222 @@
   "servers": [
     {
       "url": "https://written-emera-arapython-bf7436a4.apps.mistral.run",
-      "description": "Production Edge Server (Koyeb Free Tier)"
+      "description": "Production Edge Server (Koyeb)"
     }
   ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "Prepaid SOUQ API key (souq_live_...) minted via /api/credits/topup or /api/checkout/claim."
+      },
+      "X402PaymentTx": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Payment-Tx",
+        "description": "Base mainnet USDC transaction hash paying the recipient wallet."
+      }
+    }
+  },
   "paths": {
+    "/health": {
+      "get": {
+        "summary": "Edge Health Probe",
+        "responses": {
+          "200": { "description": "Service health, version 0.3.0, and active payment rails." }
+        }
+      }
+    },
     "/api/catalog": {
       "get": {
         "summary": "Free Discovery Catalog",
-        "description": "Inspect all available tools, prices in USDC on Base, and average prompt tokens saved per invocation.",
+        "description": "Inspect all 16 paid tools, prices in USDC on Base, digital packs, recipient wallet, and remote MCP endpoint.",
         "responses": {
-          "200": {
-            "description": "Complete tool catalog and payment parameters",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "vendor": { "type": "string" },
-                    "protocol": { "type": "string" },
-                    "network": { "type": "string" },
-                    "currency": { "type": "string" },
-                    "recipient_wallet": { "type": "string" },
-                    "tools": { "type": "array" }
-                  }
+          "200": { "description": "Complete tool catalog and payment parameters" }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "summary": "List Prepaid Credit Packs & Digital Products",
+        "description": "Lists Polar.sh Merchant of Record SKUs alongside live configuration readiness flags and Base USDC recipient wallet.",
+        "responses": {
+          "200": { "description": "Catalog of digital products and prepaid credit packs with readiness metadata." }
+        }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "summary": "Public Aggregate Telemetry & KPIs",
+        "description": "Returns aggregate traffic, settled order volume, and active tools count publicly (admin-only granular logs redacted unless authorized).",
+        "responses": {
+          "200": { "description": "Aggregate service KPIs and telemetry." }
+        }
+      }
+    },
+    "/api/cyber/threat-intel": {
+      "get": {
+        "summary": "Cyber Threat Intelligence Signatures",
+        "description": "Returns cached threat intelligence rule counts across prompt injection, honeypot, and secret leak scanners.",
+        "responses": {
+          "200": { "description": "Threat intelligence rule summary." }
+        }
+      }
+    },
+    "/mcp": {
+      "get": {
+        "summary": "Streamable HTTP MCP GET Notice",
+        "description": "Stateless SSE stream is not enabled; returns 405 with Allow: POST, DELETE instructing callers to use POST /mcp.",
+        "responses": {
+          "405": { "description": "Use POST /mcp with JSON-RPC 2.0." }
+        }
+      },
+      "post": {
+        "summary": "Streamable HTTP MCP JSON-RPC 2.0 Endpoint",
+        "description": "Remote Model Context Protocol endpoint supporting initialize, ping, tools/list (16 paid tools + souq_account_status), and tools/call.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["method"],
+                "properties": {
+                  "jsonrpc": { "type": "string", "default": "2.0" },
+                  "id": { "type": ["string", "integer", "null"] },
+                  "method": { "type": "string", "enum": ["initialize", "ping", "tools/list", "tools/call"] },
+                  "params": { "type": "object" }
                 }
               }
             }
           }
+        },
+        "responses": {
+          "200": { "description": "JSON-RPC 2.0 MCP response" },
+          "202": { "description": "Accepted JSON-RPC notification" },
+          "400": { "description": "Parse error or invalid JSON-RPC request" }
+        }
+      },
+      "delete": {
+        "summary": "Close MCP Session",
+        "description": "Stateless session teardown returning 204 No Content.",
+        "responses": {
+          "204": { "description": "No Content" }
+        }
+      }
+    },
+    "/api/credits/topup": {
+      "post": {
+        "summary": "Mint or Top-Up Prepaid API Key via Base USDC",
+        "description": "Send >= $0.50 USDC on Base mainnet (Chain 8453, contract 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913) to 0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF once, then submit tx_hash here to mint or refill a reusable X-API-Key.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["tx_hash"],
+                "properties": {
+                  "tx_hash": { "type": "string", "description": "Base mainnet 0x transaction hash containing USDC transfer" },
+                  "api_key": { "type": "string", "description": "Optional existing souq_live_* key to credit" },
+                  "label": { "type": "string", "description": "Optional agent or app label" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Prepaid API key minted or topped up with current USD balance." },
+          "400": { "description": "Invalid or unconfirmed Base USDC transaction." },
+          "409": { "description": "Transaction hash already redeemed." }
+        }
+      }
+    },
+    "/api/credits/balance": {
+      "get": {
+        "summary": "Check Prepaid API Key Balance",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Remaining balance and cumulative call count." },
+          "401": { "description": "Invalid or missing API key." }
+        }
+      }
+    },
+    "/api/checkout/create": {
+      "post": {
+        "summary": "Create Polar.sh Merchant-of-Record Checkout Session",
+        "description": "Resolves or creates a Polar.sh checkout URL for ready SKUs, embedding a one-time claim token into the same-origin success_url.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sku": {
+                    "type": "string",
+                    "enum": [
+                      "api_credit_pack_5",
+                      "api_credit_pack_15",
+                      "crypto_5y_microstructure_lake",
+                      "agent_guardrail_eval_suite",
+                      "sovereign_swarm_boilerplate"
+                    ],
+                    "default": "api_credit_pack_5"
+                  },
+                  "customer_email": { "type": "string" },
+                  "success_url": { "type": "string", "description": "Optional relative or same-origin return URL" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Checkout session URL ready." },
+          "400": { "description": "Invalid payload or non-same-origin success_url." },
+          "404": { "description": "Unknown SKU." },
+          "503": { "description": "Polar checkout or downloadable asset not configured." }
+        }
+      }
+    },
+    "/api/checkout/claim": {
+      "get": {
+        "summary": "One-Time Claim of Polar Checkout Prepaid API Key",
+        "description": "Exchanges a Polar checkout claim token or order_id for the provisioned prepaid X-API-Key once (24h TTL).",
+        "parameters": [
+          { "name": "claim", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "claim_token", "in": "query", "required": false, "schema": { "type": "string" } },
+          { "name": "order_id", "in": "query", "required": false, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Claim succeeded; returns newly minted api_key once with Cache-Control: no-store." },
+          "400": { "description": "Missing claim_token or order_id." },
+          "404": { "description": "Claim not found (webhook pending or unknown token)." },
+          "410": { "description": "Claim already redeemed or expired." }
         }
       }
     },
     "/api/tools/call": {
       "post": {
         "summary": "Execute Paid Micro-Service Tool",
-        "description": "Calls a paid analytical tool. If X-Payment-Tx header is missing (after 1 free daily trial), returns HTTP 402 Payment Required with Base USDC challenge instructions.",
+        "description": "Executes one of the 16 paid analytical tools via prepaid X-API-Key, x402 Base USDC header (X-Payment-Tx), or 1 daily free trial per IP.",
         "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "description": "Prepaid SOUQ API key minted via /api/credits/topup or /api/checkout/claim.",
+            "schema": { "type": "string" }
+          },
           {
             "name": "X-Payment-Tx",
             "in": "header",
@@ -72,9 +253,9 @@
                       "cross_exchange_arbitrage_scanner",
                       "orderbook_slippage_simulator",
                       "smart_money_whale_flow_radar",
+                      "prediction_market_arbitrage_radar",
                       "dev_api_cheatsheet_vault",
                       "daily_tech_ai_trends_radar",
-                      "prediction_market_arbitrage_radar",
                       "ast_security_scanner",
                       "synthetic_schema_verifier",
                       "prompt_injection_firewall",
@@ -84,21 +265,47 @@
                       "api_attack_surface_scanner"
                     ]
                   },
-                  "text": { "type": "string", "description": "Text to evaluate for prompt injection (for prompt_injection_firewall)" },
-                  "content": { "type": "string", "description": "File or memory content to scan for secret leaks (for secret_leak_scanner)" },
-                  "target_url": { "type": "string", "description": "Target HTTP endpoint URL to audit (for api_attack_surface_scanner)" },
-                  "strict_mode": { "type": "boolean", "default": false, "description": "Strict detection threshold (for prompt_injection_firewall)" },
-                  "token_symbol": { "type": "string", "default": "TKN", "description": "Token symbol (for smart_contract_honeypot_radar)" },
-                  "asset": { "type": "string", "default": "BTC", "description": "Target crypto asset for prediction arbitrage (BTC, ETH, SOL)" },
-                  "raw_content": { "type": "string", "description": "Text/HTML to compress (for token_context_compressor)" },
-                  "source_code": { "type": "string", "description": "Source code string (for ast_structural_slicer / ast_security_scanner)" },
-                  "target_symbol": { "type": "string", "description": "Target function/class (for ast_structural_slicer)" },
-                  "symbol": { "type": "string", "default": "BTC/USDT", "description": "Market pair symbol" },
+                  "raw_content": { "type": "string" },
+                  "max_compression": { "type": "boolean", "default": true },
+                  "mode": {
+                    "type": "string",
+                    "enum": ["auto", "html", "json", "log", "markdown", "prose"],
+                    "default": "auto"
+                  },
+                  "target_ratio": {
+                    "type": "number",
+                    "description": "Optional target compression ratio in (0.05, 0.95)"
+                  },
+                  "source_code": { "type": "string" },
+                  "target_symbol": { "type": "string" },
+                  "symbol": { "type": "string", "default": "BTC/USDT" },
                   "side": { "type": "string", "enum": ["BUY", "SELL"], "default": "BUY" },
                   "trade_size_usd": { "type": "number", "default": 10000.0 },
                   "block_threshold_usd": { "type": "number", "default": 50000.0 },
-                  "ecosystem": { "type": "string", "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "duckdb"] },
-                  "force_refresh": { "type": "boolean", "default": false }
+                  "asset": { "type": "string", "default": "BTC" },
+                  "limit": { "type": "integer", "default": 5 },
+                  "ecosystem": {
+                    "type": "string",
+                    "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "duckdb"],
+                    "default": "openai"
+                  },
+                  "force_refresh": { "type": "boolean", "default": false },
+                  "data": { "type": "object" },
+                  "schema": { "type": "object" },
+                  "text": { "type": "string" },
+                  "strict_mode": { "type": "boolean", "default": false },
+                  "contract_address": {
+                    "type": "string",
+                    "description": "Optional Base 0x... contract address for live bytecode & Blockscout source inspection"
+                  },
+                  "token_symbol": { "type": "string", "default": "TKN" },
+                  "content": { "type": "string" },
+                  "entropy_threshold": { "type": "number", "default": 4.2 },
+                  "target_url": { "type": "string" },
+                  "headers_to_check": {
+                    "type": "object",
+                    "additionalProperties": { "type": "string" }
+                  }
                 }
               }
             }
@@ -106,7 +313,11 @@
         },
         "responses": {
           "200": { "description": "Tool executed successfully with cryptographically signed settlement receipt." },
-          "402": { "description": "Payment Required - returns recipient address, price in USDC, and payment validity." }
+          "400": { "description": "Client validation error or payment verification failed (no credits/tx consumed)." },
+          "401": { "description": "Invalid API key." },
+          "402": { "description": "Payment Required - returns recipient address, USDC price, and prepaid credit top-up option." },
+          "404": { "description": "Unknown tool identifier." },
+          "503": { "description": "Upstream market/data provider unavailable (credits refunded / tx unconsumed)." }
         }
       }
     }
