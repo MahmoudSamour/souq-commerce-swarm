@@ -141,7 +141,11 @@ def run_gateway_audit() -> Dict[str, Any]:
         },
         "live_service": _check_live_service(service_url),
         "issues": [],
+        "warnings": [],
     }
+
+    if not os.getenv("DATABASE_URL", "").strip():
+        report["warnings"].append("database_url_missing_ephemeral_duckdb")
 
     if token and org_id:
         headers = _polar_headers(token)
@@ -150,6 +154,8 @@ def run_gateway_audit() -> Dict[str, Any]:
             org = org_res.json()
             report["polar"]["status"] = org.get("status")
             report["polar"]["payouts_ready"] = bool(org.get("payouts_enabled", False))
+            if not report["polar"]["payouts_ready"]:
+                report["warnings"].append("polar_payouts_disabled")
         else:
             report["issues"].append(f"polar_org_http_{org_res.status_code}")
 
@@ -174,10 +180,11 @@ def run_gateway_audit() -> Dict[str, Any]:
 def main() -> int:
     report = run_gateway_audit()
     issues = report["issues"]
+    warnings = report.get("warnings", [])
     active_count = sum(1 for p in report["polar"].get("products", []) if p.get("state") == "active")
     print(
         f"[SOUQ PaymentGatewayAgent] service_online={report['live_service'].get('online')} "
-        f"polar_active_products={active_count} issues={issues or 'none'}"
+        f"polar_active_products={active_count} issues={issues or 'none'} warnings={warnings or 'none'}"
     )
     return 1 if issues else 0
 
