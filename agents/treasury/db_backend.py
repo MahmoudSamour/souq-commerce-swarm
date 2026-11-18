@@ -54,7 +54,10 @@ def resolve_db_target(
     if target.startswith(("postgres://", "postgresql://")):
         return target, True
     env_url = os.getenv("DATABASE_URL", "").strip()
-    if target == default_path and env_url.startswith(("postgres://", "postgresql://")):
+    is_default = (target == default_path) or (
+        os.path.abspath(target) == os.path.abspath(default_path)
+    )
+    if is_default and env_url.startswith(("postgres://", "postgresql://")):
         return env_url, True
     return target, False
 

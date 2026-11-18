@@ -614,13 +614,13 @@ class PolarAdapter:
         """
         tok = (claim_token or "").strip()
         ord_id = (order_id or "").strip()
-        if not tok and not ord_id:
-            return False, {"error": "Missing claim_token or order_id"}
+        if not tok:
+            return False, {"error": "Missing claim_token"}
 
         now = datetime.now(timezone.utc)
         with db_transaction(self.db_target, read_only=False) as con:
             self._ensure_claims_table(con)
-            if tok and ord_id:
+            if ord_id:
                 row = con.execute(
                     """
                     SELECT claim_token, order_id, sku, sealed_key, key_prefix,
@@ -630,7 +630,7 @@ class PolarAdapter:
                     """,
                     (tok, ord_id),
                 ).fetchone()
-            elif tok:
+            else:
                 row = con.execute(
                     """
                     SELECT claim_token, order_id, sku, sealed_key, key_prefix,
@@ -639,16 +639,6 @@ class PolarAdapter:
                     WHERE claim_token = ?
                     """,
                     (tok,),
-                ).fetchone()
-            else:
-                row = con.execute(
-                    """
-                    SELECT claim_token, order_id, sku, sealed_key, key_prefix,
-                           amount_cents, claimed, created_at, expires_at
-                    FROM polar_checkout_claims
-                    WHERE order_id = ?
-                    """,
-                    (ord_id,),
                 ).fetchone()
 
             if not row:

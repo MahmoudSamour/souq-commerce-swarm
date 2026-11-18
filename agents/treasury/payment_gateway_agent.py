@@ -34,8 +34,8 @@ def _polar_headers(token: str) -> Dict[str, str]:
     }
 
 
-def _sync_polar_products(headers: Dict[str, str]) -> Dict[str, Any]:
-    """Ensure active Polar products match configured env IDs and asset readiness."""
+def _sync_polar_products(headers: Dict[str, str], paid_routes_ready: bool) -> Dict[str, Any]:
+    """Ensure active Polar products match live route readiness and asset availability."""
     r = requests.get(f"{POLAR_API}/products/", headers=headers, timeout=15)
     r.raise_for_status()
     by_id = {p["id"]: p for p in r.json().get("items", [])}
@@ -50,7 +50,7 @@ def _sync_polar_products(headers: Dict[str, str]) -> Dict[str, Any]:
         prod = by_id[pid]
         asset_env = meta.get("asset_url_env")
         has_asset = True if not asset_env else bool(os.getenv(asset_env, "").strip())
-        should_archive = not has_asset
+        should_archive = (not has_asset) or (not paid_routes_ready)
 
         if prod.get("is_archived") != should_archive:
             patch = requests.patch(
@@ -60,9 +60,19 @@ def _sync_polar_products(headers: Dict[str, str]) -> Dict[str, Any]:
                 timeout=15,
             )
             patch.raise_for_status()
-            action = "archived_missing_asset" if should_archive else "activated"
+            if not paid_routes_ready:
+                action = "paused_live_routes_not_ready"
+            elif not has_asset:
+                action = "archived_missing_asset"
+            else:
+                action = "activated"
         else:
-            action = "active" if not should_archive else "archived_missing_asset"
+            if not paid_routes_ready:
+                action = "paused_live_routes_not_ready"
+            elif not has_asset:
+                action = "archived_missing_asset"
+            else:
+                action = "active"
 
         synced.append({"sku": sku, "product_id": pid, "state": action})
     return {"products": synced}
@@ -139,11 +149,11 @@ def run_gateway_audit() -> Dict[str, Any]:
         if org_res.status_code == 200:
             org = org_res.json()
             report["polar"]["status"] = org.get("status")
-            report["polar"]["payouts_ready"] = bool(org.get("payouts_enabled", True))
+            report["polar"]["payouts_ready"] = bool(org.get("payouts_enabled", False))
         else:
             report["issues"].append(f"polar_org_http_{org_res.status_code}")
 
-        report["polar"].update(_sync_polar_products(headers))
+        report["polar"].update(_sync_polar_products(headers, bool(report["live_service"].get("paid_routes_ready"))))
         webhook_info = _check_polar_webhook(headers, f"{service_url}/webhooks/polar")
         report["polar"]["webhook"] = webhook_info
         if not webhook_info.get("configured"):
