@@ -79,12 +79,32 @@ def _check_polar_webhook(headers: Dict[str, str], target_url: str) -> Dict[str, 
 
 
 def _check_live_service(service_url: str) -> Dict[str, Any]:
-    """Ping live Koyeb service health and payment endpoints."""
+    """Ping live Koyeb service health, product catalog, and Polar webhook route."""
+    result: Dict[str, Any] = {"online": False, "routes": {}}
     try:
-        r = requests.get(f"{service_url}/health", timeout=15)
-        return {"online": r.status_code == 200, "status_code": r.status_code}
+        r_health = requests.get(f"{service_url}/health", timeout=15)
+        result["status_code"] = r_health.status_code
+        result["online"] = r_health.status_code == 200
+
+        r_prods = requests.get(f"{service_url}/api/products", timeout=15)
+        result["routes"]["/api/products"] = r_prods.status_code
+
+        # POST /webhooks/polar with empty body: 401 = route live & secret set; 404 = stale deploy; 503 = secret missing
+        r_hook = requests.post(f"{service_url}/webhooks/polar", data=b"{}", timeout=15)
+        result["routes"]["/webhooks/polar"] = r_hook.status_code
+
+        r_claim = requests.get(f"{service_url}/api/checkout/claim", timeout=15)
+        result["routes"]["/api/checkout/claim"] = r_claim.status_code
+
+        result["paid_routes_ready"] = (
+            r_prods.status_code == 200
+            and r_hook.status_code in (400, 401)
+            and r_claim.status_code != 404
+        )
+        return result
     except requests.RequestException as exc:
-        return {"online": False, "error": str(exc)}
+        result["error"] = str(exc)
+        return result
 
 
 def run_gateway_audit() -> Dict[str, Any]:
@@ -95,13 +115,17 @@ def run_gateway_audit() -> Dict[str, Any]:
     org_id = os.getenv("POLAR_ORGANIZATION_ID", "").strip()
     webhook_secret = os.getenv("POLAR_WEBHOOK_SECRET", "").strip()
     service_url = os.getenv("SOUQ_PUBLIC_URL", DEFAULT_SERVICE_URL).rstrip("/")
+    wallet_addr = (
+        os.getenv("BASE_RECIPIENT_WALLET_ADDRESS", "").strip()
+        or os.getenv("WALLET_ADDRESS", "").strip()
+    )
 
     report: Dict[str, Any] = {
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "service_url": service_url,
         "polar": {"configured": bool(token and org_id and webhook_secret)},
         "x402_usdc": {
-            "wallet_set": bool(os.getenv("WALLET_ADDRESS", "").strip()),
+            "wallet_set": bool(wallet_addr),
             "pepper_set": bool(os.getenv("SOUQ_API_KEY_PEPPER", "").strip()),
             "receipt_key_set": bool(os.getenv("SOUQ_RECEIPT_SIGNING_KEY", "").strip()),
         },
@@ -129,6 +153,8 @@ def run_gateway_audit() -> Dict[str, Any]:
 
     if not report["live_service"].get("online"):
         report["issues"].append("live_service_unreachable")
+    elif not report["live_service"].get("paid_routes_ready"):
+        report["issues"].append("live_paid_routes_not_ready")
 
     STATUS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     STATUS_LOG_PATH.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
