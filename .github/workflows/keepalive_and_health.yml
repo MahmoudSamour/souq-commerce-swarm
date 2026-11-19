@@ -1,0 +1,26 @@
+name: SOUQ Keepalive & Edge Health Monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  keepalive-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /health to reduce Koyeb cold starts
+        run: |
+          curl -fsS --max-time 25 https://written-emera-arapython-bf7436a4.apps.mistral.run/health
+
+      - name: Verify paid routes and Streamable HTTP /mcp
+        run: |
+          set -euo pipefail
+          BASE="https://written-emera-arapython-bf7436a4.apps.mistral.run"
+          curl -fsS --max-time 20 "$BASE/api/products" | grep -q "api_credit_pack_5"
+          HOOK_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 -X POST "$BASE/webhooks/polar" -d "{}")
+          echo "Polar webhook probe HTTP $HOOK_CODE"
+          test "$HOOK_CODE" = "401" -o "$HOOK_CODE" = "400"
+          curl -fsS --max-time 20 -X POST "$BASE/mcp" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | grep -q "prediction_market_arbitrage_radar"
