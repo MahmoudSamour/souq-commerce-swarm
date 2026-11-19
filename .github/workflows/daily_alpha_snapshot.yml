@@ -1,0 +1,36 @@
+name: SOUQ Daily Alpha Snapshot & IndexNow
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  daily-alpha:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Generate live Polymarket & Funding Alpha Markdown
+        run: python scripts/generate_daily_alpha_md.py
+      - name: Broadcast IndexNow discovery pings
+        run: python -c "from agents.distribution.munadi_herald import MunadiHerald; print(MunadiHerald().broadcast_to_indexnow())"
+      - name: Commit updated alpha snapshot if changed
+        run: |
+          git config user.name "souq-automation[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/DAILY_POLYMARKET_ALPHA.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(alpha): update daily Polymarket & funding snapshot"
+            git push
+          else
+            echo "No changes to commit."
+          fi
