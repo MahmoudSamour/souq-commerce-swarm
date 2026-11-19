@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "souq-mcp"
-version = "0.3.0"
+version = "0.3.1"
 description = "Official 1-line MCP client & Python SDK for SOUQ autonomous micro-services (x402 Base USDC + Prepaid API Keys)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [
-    { name = "SOUQ Autonomous Commerce Swarm", email = "dev@souq-swarm.ai" }
+    { name = "SOUQ Commerce Swarm" }
 ]
 keywords = ["mcp", "model-context-protocol", "ai-agents", "llm", "token-compression", "crypto-arbitrage", "base-l2", "x402"]
 classifiers = [

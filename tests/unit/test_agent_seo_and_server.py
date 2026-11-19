@@ -148,7 +148,8 @@ def test_unknown_tool_returns_404_before_trial(client):
     assert res.json()["error"] == "Unknown tool"
 
 
-def test_free_trial_and_cf_ip_isolation(client):
+def test_free_trial_and_cf_ip_isolation(client, monkeypatch):
+    monkeypatch.setenv("SOUQ_FREE_TRIAL_DAILY_LIMIT", "1")
     # First call for caller IP A receives 1 free trial
     payload = {"tool": "dev_api_cheatsheet_vault", "ecosystem": "openai"}
     ip_a = {"CF-Connecting-IP": "198.51.100.10"}

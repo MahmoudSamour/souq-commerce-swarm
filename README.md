@@ -78,9 +78,9 @@ print(res)
 ### Active Paid Tools (`16` Tools, `$0.01 – $0.03 USDC` / call)
 | Category | Tool Name | Price (USDC) | Capabilities & Key Parameters |
 |---|---|---|---|
-| **Optimization** | `token_context_compressor` | **$0.01** | Token pruning for HTML, JSON, logs, markdown, prose (`raw_content`, `max_compression`, `mode`, `target_ratio`). |
-| **Code Intel** | `ast_structural_slicer` | **$0.02** | Exact AST function/class extraction for Python/Solidity (`source_code`, `target_symbol`). |
-| **Security** | `ast_security_scanner` | **$0.03** | Static AST security linter catching `eval`, `exec`, shell execution (`source_code`). |
+| **Optimization** | `token_context_compressor` | **$0.01** | Token pruning for HTML, JSON, code, logs, markdown, prose (`raw_content`, `max_compression`, `mode`, `target_ratio`). |
+| **Code Intel** | `ast_structural_slicer` | **$0.02** | Exact AST function/class extraction for Python (`source_code`, `target_symbol`). |
+| **Security** | `ast_security_scanner` | **$0.03** | Python AST security linter (compatibility alias for `deep_ast_vulnerability_auditor`) (`source_code`). |
 | **Cyber Defense** | `prompt_injection_firewall` | **$0.01** | Prompt injection, DAN jailbreak, and exfiltration firewall (`text`, `strict_mode`). |
 | **Cyber Defense** | `smart_contract_honeypot_radar` | **$0.03** | Solidity source & live Base address honeypot/reentrancy audit (`source_code`, `contract_address`, `token_symbol`). |
 | **Cyber Defense** | `secret_leak_scanner` | **$0.01** | High-entropy API key & private key secret detector (`content`, `entropy_threshold`). |
@@ -91,7 +91,7 @@ print(res)
 | **Market Quant** | `orderbook_slippage_simulator` | **$0.02** | Live depth VWAP & slippage bps simulation (`symbol`, `side` `BUY`/`SELL`, `trade_size_usd`). |
 | **Market Quant** | `smart_money_whale_flow_radar` | **$0.03** | Block trade & limit wall Whale Accumulation Index (`symbol`, `block_threshold_usd`). |
 | **Prediction** | `prediction_market_arbitrage_radar` | **$0.03** | Live Polymarket binary prices vs Black-Scholes realized-vol probabilities (`asset`, `limit`). |
-| **Developer Intel** | `dev_api_cheatsheet_vault` | **$0.01** | High-density schemas (`openai`, `anthropic`, `stripe`, `base_evm`, `fastmcp`, `duckdb`). |
+| **Developer Intel** | `dev_api_cheatsheet_vault` | **$0.01** | High-density schemas (`openai`, `anthropic`, `stripe`, `base_evm`, `fastmcp`, `mcp`, `duckdb`). |
 | **Tech Intel** | `daily_tech_ai_trends_radar` | **$0.01** | Live AI radar across GitHub, HackerNews, and arXiv (`force_refresh`). |
 | **Verification** | `synthetic_schema_verifier` | **$0.01** | Deterministic JSON type schema validation (`data`, `schema`). |
 

@@ -192,7 +192,15 @@ class TokenContextCompressor:
         raw_content = raw_content if isinstance(raw_content, str) else ""
 
         requested_mode = (mode or "auto").strip().lower()
-        if requested_mode not in ("auto", "prose", "code", "logs"):
+        mode_aliases = {
+            "html": "prose",
+            "markdown": "prose",
+            "md": "prose",
+            "text": "prose",
+            "log": "logs",
+        }
+        requested_mode = mode_aliases.get(requested_mode, requested_mode)
+        if requested_mode not in ("auto", "prose", "code", "logs", "json"):
             requested_mode = "auto"
 
         effective_target_ratio = float(target_ratio) if target_ratio is not None else (0.5 if max_compression else 0.85)
@@ -202,8 +210,8 @@ class TokenContextCompressor:
         detected_mode = requested_mode
         compressed_output = ""
 
-        # 0. Structured JSON fast path (only in auto mode unless explicitly forced otherwise)
-        if requested_mode == "auto" and (
+        # 0. Structured JSON fast path (in auto mode or explicit json mode)
+        if requested_mode in ("auto", "json") and (
             (stripped.startswith("{") and stripped.endswith("}"))
             or (stripped.startswith("[") and stripped.endswith("]"))
         ):
@@ -217,7 +225,7 @@ class TokenContextCompressor:
                 compressed_output = ""
 
         if detected_mode != "json":
-            resolved_mode = self._detect_mode(raw_content) if requested_mode == "auto" else requested_mode
+            resolved_mode = self._detect_mode(raw_content) if requested_mode in ("auto", "json") else requested_mode
             detected_mode = resolved_mode
             if resolved_mode == "code":
                 compressed_output = self._compress_code(raw_content, target_ratio=effective_target_ratio)

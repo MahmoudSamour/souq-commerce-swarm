@@ -414,7 +414,8 @@ def test_server_chunked_large_post_without_content_length_returns_413(isolated_s
     assert body["code"] == "payload_too_large"
 
 
-def test_server_ip_isolation_cf_spoof_persistence_and_no_raw_ip_in_db(isolated_server_factory, tmp_path):
+def test_server_ip_isolation_cf_spoof_persistence_and_no_raw_ip_in_db(isolated_server_factory, tmp_path, monkeypatch):
+    monkeypatch.setenv("SOUQ_FREE_TRIAL_DAILY_LIMIT", "1")
     db_file = tmp_path / "ip_isolation.duckdb"
     mod = isolated_server_factory(db_path=db_file)
     payload = {"tool": "prompt_injection_firewall", "text": "hello safe world"}

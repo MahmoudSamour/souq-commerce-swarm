@@ -76,7 +76,7 @@
           "max_compression": { "type": "boolean", "default": true },
           "mode": {
             "type": "string",
-            "enum": ["auto", "html", "json", "log", "markdown", "prose"],
+            "enum": ["auto", "html", "json", "code", "log", "logs", "markdown", "prose"],
             "default": "auto"
           },
           "target_ratio": { "type": "number", "description": "Optional target compression ratio in (0.05, 0.95)" }
@@ -87,7 +87,7 @@
     {
       "name": "ast_structural_slicer",
       "category": "Code Slicing",
-      "description": "Surgically extracts a single AST function or class from Python/Solidity source code ($0.02 USDC).",
+      "description": "Surgically extracts a single AST function or class from Python source code ($0.02 USDC).",
       "price_usdc": 0.02,
       "avg_tokens_saved": 3000,
       "est_inference_savings_usd": 0.015,
@@ -189,7 +189,7 @@
     {
       "name": "dev_api_cheatsheet_vault",
       "category": "API Schema Reference",
-      "description": "High-density API schemas & snippets for openai, anthropic, stripe, base_evm, fastmcp, duckdb ($0.01 USDC).",
+      "description": "High-density API schemas & snippets for openai, anthropic, stripe, base_evm, fastmcp, mcp, duckdb ($0.01 USDC).",
       "price_usdc": 0.01,
       "avg_tokens_saved": 40000,
       "est_inference_savings_usd": 0.2,
@@ -200,7 +200,7 @@
         "properties": {
           "ecosystem": {
             "type": "string",
-            "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "duckdb"],
+            "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "mcp", "duckdb"],
             "default": "openai"
           }
         }
@@ -225,7 +225,7 @@
     {
       "name": "ast_security_scanner",
       "category": "Security Linting",
-      "description": "Static AST code security linter detecting eval/exec and dangerous shell calls ($0.03 USDC).",
+      "description": "Python AST code security linter (compatibility alias for deep_ast_vulnerability_auditor) ($0.03 USDC).",
       "price_usdc": 0.03,
       "avg_tokens_saved": 4000,
       "est_inference_savings_usd": 0.02,

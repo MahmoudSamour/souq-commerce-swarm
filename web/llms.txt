@@ -29,16 +29,16 @@ Agents can evaluate **1 free trial call per 24h per IP**, then pay via:
 0. `souq_account_status` ($0.00) — Inspects prepaid `X-API-Key` credits, Base USDC payment wallet, and tool pricing. Params: `{}`.
 
 ## Available Paid Micro-Service Tools (All 16)
-1. `token_context_compressor` ($0.01 USDC) — Compresses HTML, JSON, logs, or markdown by 60–95%. Params: `raw_content` (required), `max_compression` (bool, default `true`), `mode` (`"auto"|"html"|"json"|"log"|"markdown"|"prose"`, default `"auto"`), `target_ratio` (number in `(0.05, 0.95)`).
-2. `ast_structural_slicer` ($0.02 USDC) — Extracts a single AST function or class from Python/Solidity source. Params: `source_code` (required), `target_symbol` (required).
+1. `token_context_compressor` ($0.01 USDC) — Compresses HTML, JSON, code, logs, or markdown by 60–95%. Params: `raw_content` (required), `max_compression` (bool, default `true`), `mode` (`"auto"|"html"|"json"|"code"|"log"|"logs"|"markdown"|"prose"`, default `"auto"`), `target_ratio` (number in `(0.05, 0.95)`).
+2. `ast_structural_slicer` ($0.02 USDC) — Extracts a single AST function or class from Python source code. Params: `source_code` (required), `target_symbol` (required).
 3. `quant_microstructure_radar` ($0.02 USDC) — Live order book depth, spread bps, OBI, and cascade risk score. Params: `symbol` (default `"BTC/USDT"`).
 4. `cross_exchange_arbitrage_scanner` ($0.03 USDC) — Spot vs Perpetual Futures basis spreads & annualized funding APR. Params: `symbol` (default `"BTC/USDT"`).
 5. `orderbook_slippage_simulator` ($0.02 USDC) — Walks 100 order book levels for VWAP, slippage bps, and impact. Params: `symbol` (default `"BTC/USDT"`), `side` (`"BUY"|"SELL"`, default `"BUY"`), `trade_size_usd` (default `10000.0`).
 6. `smart_money_whale_flow_radar` ($0.03 USDC) — Aggregates block trades and limit walls for Whale Accumulation Index. Params: `symbol` (default `"BTC/USDT"`), `block_threshold_usd` (default `50000.0`).
 7. `prediction_market_arbitrage_radar` ($0.03 USDC) — Polymarket crypto markets vs 30d realized-vol Black-Scholes probabilities. Params: `asset` (default `"BTC"`), `limit` (integer, default `5`).
-8. `dev_api_cheatsheet_vault` ($0.01 USDC) — High-density API schemas & snippets. Params: `ecosystem` (`"openai"|"anthropic"|"stripe"|"base_evm"|"fastmcp"|"duckdb"`, default `"openai"`).
+8. `dev_api_cheatsheet_vault` ($0.01 USDC) — High-density API schemas & snippets. Params: `ecosystem` (`"openai"|"anthropic"|"stripe"|"base_evm"|"fastmcp"|"mcp"|"duckdb"`, default `"openai"`).
 9. `daily_tech_ai_trends_radar` ($0.01 USDC) — Live GitHub AI repos, HackerNews top stories, and arXiv cs.AI/cs.CL. Params: `force_refresh` (bool, default `false`).
-10. `ast_security_scanner` ($0.03 USDC) — Static AST code security linter for eval/exec and dangerous shell calls. Params: `source_code` (required).
+10. `ast_security_scanner` ($0.03 USDC) — Python AST code security linter (compatibility alias for `deep_ast_vulnerability_auditor`). Params: `source_code` (required).
 11. `synthetic_schema_verifier` ($0.01 USDC) — Validates JSON payloads against expected type schemas. Params: `data` (object, required), `schema` (object, required).
 12. `prompt_injection_firewall` ($0.01 USDC) — Detects prompt injection, DAN jailbreaks, and prompt exfiltration. Params: `text` (required), `strict_mode` (bool, default `false`).
 13. `smart_contract_honeypot_radar` ($0.03 USDC) — Audits Solidity source OR live Base `0x...` contracts for honeypots, hidden mints, and reentrancy. Params: `source_code` (default `""`), `contract_address`, `token_symbol` (default `"TKN"`).

@@ -14,24 +14,25 @@ TOOLS_METADATA = [
     },
     {
         "name": "token_context_compressor",
-        "description": "Slashes LLM context bloat by 80-95% to save prompt tokens ($0.01 USDC).",
+        "description": "Compresses bloated HTML, JSON, code, logs, or markdown by 60-95% to save prompt tokens ($0.01 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "raw_content": {"type": "string", "description": "The raw text, markdown, or code to compress"},
+                "raw_content": {"type": "string", "description": "The raw HTML, JSON, code, log, or markdown text to compress"},
                 "max_compression": {"type": "boolean", "default": True, "description": "Enable aggressive pruning, table compaction, and log deduplication"},
-                "mode": {"type": "string", "enum": ["auto", "prose", "code", "logs"], "default": "auto", "description": "Optional compression profile hint (auto, prose, code, logs)"}
+                "mode": {"type": "string", "enum": ["auto", "html", "json", "code", "log", "logs", "markdown", "prose"], "default": "auto", "description": "Optional compression profile hint"},
+                "target_ratio": {"type": "number", "description": "Optional target compression ratio in (0.05, 0.95)"}
             },
             "required": ["raw_content"]
         }
     },
     {
         "name": "ast_structural_slicer",
-        "description": "Surgically slices targeted AST functions from source code ($0.02 USDC).",
+        "description": "Surgically extracts a single AST function or class from Python source code ($0.02 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "source_code": {"type": "string", "description": "The Python or Solidity source code"},
+                "source_code": {"type": "string", "description": "The Python source code"},
                 "target_symbol": {"type": "string", "description": "The function or class name to slice"}
             },
             "required": ["source_code", "target_symbol"]
@@ -82,11 +83,11 @@ TOOLS_METADATA = [
     },
     {
         "name": "dev_api_cheatsheet_vault",
-        "description": "Compressed API schemas and snippets for major developer platforms (openai, anthropic, stripe, base_evm, fastmcp, duckdb) ($0.01 USDC).",
+        "description": "Compressed API schemas and snippets for major developer platforms (openai, anthropic, stripe, base_evm, fastmcp, mcp, duckdb) ($0.01 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "ecosystem": {"type": "string", "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "duckdb"], "default": "openai"}
+                "ecosystem": {"type": "string", "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "mcp", "duckdb"], "default": "openai"}
             }
         }
     },
@@ -113,11 +114,11 @@ TOOLS_METADATA = [
     },
     {
         "name": "ast_security_scanner",
-        "description": "Static AST code security linter for Python and Solidity ($0.03 USDC).",
+        "description": "Python AST code security linter (compatibility alias for deep_ast_vulnerability_auditor) ($0.03 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "source_code": {"type": "string", "description": "Source code to audit for vulnerabilities"}
+                "source_code": {"type": "string", "description": "Python source code to audit for vulnerabilities"}
             },
             "required": ["source_code"]
         }

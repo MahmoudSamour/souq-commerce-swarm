@@ -112,10 +112,14 @@ def _init_server_tables() -> None:
             """
             CREATE TABLE IF NOT EXISTS free_trial_usage (
                 ip_hash TEXT PRIMARY KEY,
-                last_used_ts DOUBLE
+                last_used_ts DOUBLE,
+                calls_today INTEGER DEFAULT 0,
+                window_start_ts DOUBLE
             )
             """
         )
+        con.execute("ALTER TABLE free_trial_usage ADD COLUMN IF NOT EXISTS calls_today INTEGER DEFAULT 0")
+        con.execute("ALTER TABLE free_trial_usage ADD COLUMN IF NOT EXISTS window_start_ts DOUBLE")
 
 
 _init_server_tables()
@@ -220,8 +224,18 @@ def _apply_security_headers(response: Response) -> Response:
     return response
 
 
+_SKIP_TELEMETRY_PATHS = frozenset({
+    "/favicon.ico",
+    "/robots.txt",
+    "/sitemap.xml",
+    "/souq-agent-commerce-index-key-2026.txt",
+})
+
+
 def _should_skip_telemetry(path: str, user_agent: str) -> bool:
-    """Suppresses noisy infrastructure / health probe logs without hiding real AI agent visits."""
+    """Suppresses noisy infrastructure / health probe & static crawler logs without hiding real AI agent visits."""
+    if path in _SKIP_TELEMETRY_PATHS:
+        return True
     if path != "/health":
         return False
     ua_lower = (user_agent or "").strip().lower()
@@ -527,15 +541,15 @@ MCP_TOOLS_SCHEMA = [
     },
     {
         "name": "token_context_compressor",
-        "description": "Compresses bloated HTML, JSON objects/arrays, logs, or markdown by 60-95% while preserving entities ($0.01 USDC).",
+        "description": "Compresses bloated HTML, JSON objects/arrays, code, logs, or markdown by 60-95% while preserving entities ($0.01 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "raw_content": {"type": "string", "description": "Raw HTML, JSON, log, or markdown text to compress"},
+                "raw_content": {"type": "string", "description": "Raw HTML, JSON, code, log, or markdown text to compress"},
                 "max_compression": {"type": "boolean", "default": True},
                 "mode": {
                     "type": "string",
-                    "enum": ["auto", "html", "json", "log", "markdown", "prose"],
+                    "enum": ["auto", "html", "json", "code", "log", "logs", "markdown", "prose"],
                     "default": "auto",
                 },
                 "target_ratio": {"type": "number", "description": "Optional target compression ratio in (0.05, 0.95)"},
@@ -545,7 +559,7 @@ MCP_TOOLS_SCHEMA = [
     },
     {
         "name": "ast_structural_slicer",
-        "description": "Surgically extracts a single AST function or class from Python/Solidity source code ($0.02 USDC).",
+        "description": "Surgically extracts a single AST function or class from Python source code ($0.02 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -607,11 +621,11 @@ MCP_TOOLS_SCHEMA = [
     },
     {
         "name": "dev_api_cheatsheet_vault",
-        "description": "High-density API schemas & snippets for openai, anthropic, stripe, base_evm, fastmcp, duckdb ($0.01 USDC).",
+        "description": "High-density API schemas & snippets for openai, anthropic, stripe, base_evm, fastmcp, mcp, duckdb ($0.01 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "ecosystem": {"type": "string", "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "duckdb"], "default": "openai"},
+                "ecosystem": {"type": "string", "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "mcp", "duckdb"], "default": "openai"},
             },
         },
     },
@@ -625,7 +639,7 @@ MCP_TOOLS_SCHEMA = [
     },
     {
         "name": "ast_security_scanner",
-        "description": "Static AST code security linter detecting eval/exec and dangerous shell calls ($0.03 USDC).",
+        "description": "Python AST code security linter (compatibility alias for deep_ast_vulnerability_auditor) ($0.03 USDC).",
         "inputSchema": {
             "type": "object",
             "properties": {"source_code": {"type": "string"}},
@@ -844,34 +858,59 @@ def _is_test_simulation_allowed() -> bool:
     return os.getenv("SOUQ_ALLOW_TEST_SIMULATION", "false").strip().lower() == "true"
 
 
+def _get_free_trial_daily_limit() -> int:
+    try:
+        return max(1, int(os.getenv("SOUQ_FREE_TRIAL_DAILY_LIMIT", "5")))
+    except (TypeError, ValueError):
+        return 5
+
+
 def _check_free_trial_eligible(ip_hash: str, now_ts: Optional[float] = None) -> bool:
     now = time.time() if now_ts is None else now_ts
+    limit = _get_free_trial_daily_limit()
     with db_transaction(DB_TARGET, read_only=True) as con:
         row = con.execute(
-            "SELECT last_used_ts FROM free_trial_usage WHERE ip_hash = ?",
+            "SELECT last_used_ts, calls_today, window_start_ts FROM free_trial_usage WHERE ip_hash = ?",
             [ip_hash],
         ).fetchone()
     if not row or row[0] is None:
         return True
-    return (now - float(row[0])) >= 86400.0
+    window_start = float(row[2]) if row[2] is not None else float(row[0])
+    if (now - window_start) >= 86400.0:
+        return True
+    calls_today = int(row[1]) if row[1] is not None else 1
+    return calls_today < limit
 
 
-def _consume_free_trial(ip_hash: str, now_ts: Optional[float] = None) -> bool:
+def _consume_free_trial(ip_hash: str, now_ts: Optional[float] = None) -> Tuple[bool, int, int]:
     now = time.time() if now_ts is None else now_ts
     cutoff = now - 86400.0
+    limit = _get_free_trial_daily_limit()
     with db_transaction(DB_TARGET) as con:
         row = con.execute(
             """
-            INSERT INTO free_trial_usage (ip_hash, last_used_ts)
-            VALUES (?, ?)
+            INSERT INTO free_trial_usage (ip_hash, last_used_ts, calls_today, window_start_ts)
+            VALUES (?, ?, 1, ?)
             ON CONFLICT (ip_hash) DO UPDATE
-            SET last_used_ts = EXCLUDED.last_used_ts
-            WHERE free_trial_usage.last_used_ts <= ?
-            RETURNING ip_hash
+            SET last_used_ts = EXCLUDED.last_used_ts,
+                calls_today = CASE
+                    WHEN COALESCE(free_trial_usage.window_start_ts, free_trial_usage.last_used_ts, 0) <= ? THEN 1
+                    ELSE COALESCE(free_trial_usage.calls_today, 1) + 1
+                END,
+                window_start_ts = CASE
+                    WHEN COALESCE(free_trial_usage.window_start_ts, free_trial_usage.last_used_ts, 0) <= ? THEN EXCLUDED.window_start_ts
+                    ELSE COALESCE(free_trial_usage.window_start_ts, free_trial_usage.last_used_ts)
+                END
+            WHERE COALESCE(free_trial_usage.window_start_ts, free_trial_usage.last_used_ts, 0) <= ?
+               OR COALESCE(free_trial_usage.calls_today, 1) < ?
+            RETURNING calls_today
             """,
-            [ip_hash, now, cutoff],
+            [ip_hash, now, now, cutoff, cutoff, cutoff, limit],
         ).fetchone()
-    return row is not None
+    if not row:
+        return False, limit, 0
+    used = int(row[0])
+    return True, limit, max(0, limit - used)
 
 
 def _dispatch_tool(tool_name: str, body: Dict[str, Any]) -> Dict[str, Any]:
@@ -1331,13 +1370,22 @@ async def _authorize_and_execute_tool(
                     {"X-Souq-Tool": tool_name, "X-Souq-Billing": "FREE_TRIAL_UNCONSUMED_ERROR"},
                 )
 
-            trial_granted = await anyio.to_thread.run_sync(_consume_free_trial, client_ip_hash)
+            trial_granted, trial_limit, trial_remaining = await anyio.to_thread.run_sync(
+                _consume_free_trial, client_ip_hash
+            )
             if trial_granted:
                 billing_header = "FREE_TRIAL_EVALUATION"
-                extra_headers["X-Souq-Next-Call"] = "HTTP_402_PAYMENT_REQUIRED"
+                extra_headers["X-Souq-Free-Trial-Remaining"] = str(trial_remaining)
+                if trial_remaining == 0:
+                    extra_headers["X-Souq-Next-Call"] = "HTTP_402_PAYMENT_REQUIRED"
                 settlement = {
                     "status": "FREE_TRIAL_GRANTED",
-                    "notice": "1 daily free trial evaluation granted. Subsequent calls require Base USDC (x402) or a prepaid X-API-Key.",
+                    "daily_free_limit": trial_limit,
+                    "daily_free_remaining": trial_remaining,
+                    "notice": (
+                        f"Daily free trial evaluation granted ({trial_remaining}/{trial_limit} free calls remaining today). "
+                        "Subsequent calls after quota require Base USDC (x402) or a prepaid X-API-Key."
+                    ),
                     "recipient_wallet": payment_gw.recipient_wallet,
                     "chain": "Base",
                     "currency": "USDC",
@@ -1541,7 +1589,7 @@ async def health(request):
     return JSONResponse({
         "status": "healthy",
         "service": "souq-commerce-swarm",
-        "version": "0.3.0",
+        "version": "0.3.1",
         "network": "Base",
         "currency": "USDC",
         "a2a_rail": "x402-v1.0",

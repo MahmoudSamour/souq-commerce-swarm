@@ -13,6 +13,7 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple
 import duckdb
 
 _DB_LOCKS: Dict[str, threading.RLock] = {}
+_PG_POOLS: Dict[str, Any] = {}
 _LOCK_GUARD = threading.Lock()
 _DOUBLE_TYPE_RE = re.compile(r"\bDOUBLE\b(?!\s+PRECISION)", re.IGNORECASE)
 
@@ -197,15 +198,54 @@ class DBConn:
         return DBCursor(cur)
 
 
+def _get_pg_pool(db_target: str) -> Optional[Any]:
+    """Returns a cached psycopg_pool.ConnectionPool for db_target, or None if psycopg_pool is unavailable."""
+    with _LOCK_GUARD:
+        if db_target in _PG_POOLS:
+            return _PG_POOLS[db_target]
+        try:
+            from psycopg_pool import ConnectionPool  # type: ignore
+
+            pool = ConnectionPool(
+                conninfo=db_target,
+                min_size=1,
+                max_size=5,
+                kwargs={"autocommit": False},
+            )
+            _PG_POOLS[db_target] = pool
+            return pool
+        except ImportError:
+            _PG_POOLS[db_target] = None
+            return None
+
+
 @contextmanager
 def db_transaction(db_target: str, read_only: bool = False) -> Iterator[DBConn]:
     """
     Opens a locked, transactional database session against DuckDB or PostgreSQL.
-    Commits on clean exit (when `not read_only`), rolls back on error, and always closes.
+    Uses pooled connections for PostgreSQL when psycopg_pool is installed.
+    Commits on clean exit (when `not read_only`), rolls back on error, and always returns/closes.
     """
     is_postgres = db_target.startswith(("postgres://", "postgresql://"))
 
     if is_postgres:
+        pool = _get_pg_pool(db_target)
+        if pool is not None:
+            with pool.connection() as conn:
+                try:
+                    yield DBConn(conn, is_postgres=True)
+                    if not read_only:
+                        conn.commit()
+                    else:
+                        conn.rollback()
+                except Exception:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        pass
+                    raise
+            return
+
         try:
             import psycopg  # type: ignore
             conn = psycopg.connect(db_target, autocommit=False)

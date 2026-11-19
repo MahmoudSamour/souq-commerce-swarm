@@ -773,6 +773,7 @@
           <span id="claimBannerKeyBox" class="claim-key-pill" style="display: none;"></span>
           <button type="button" id="claimCopyBtn" class="btn btn-success btn-sm" style="display: none;">Copy API Key</button>
           <button type="button" id="claimRetryBtn" class="btn btn-ghost btn-sm" style="display: none;">Retry Claim</button>
+          <a href="https://github.com/MahmoudSamour/souq-commerce-swarm/issues" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Lost Key? Support</a>
           <button type="button" id="claimDismissBtn" class="btn btn-ghost btn-sm">Dismiss</button>
         </div>
       </div>
@@ -782,12 +783,16 @@
     <section class="hero">
       <div class="status-chip">
         <span class="dot-pulse"></span>
-        <span>v0.3.0 ONLINE // 16 PAID TOOLS + ACCOUNT DISCOVERY // STREAMABLE HTTP /mcp</span>
+        <span>v0.3.1 ONLINE // 5 FREE CALLS DAILY // STREAMABLE HTTP /mcp</span>
       </div>
-      <h1>Autonomous Cyber Defense &amp; Quant Context APIs for AI Agents.</h1>
+      <h1>Live Crypto Quant, Polymarket Arbitrage &amp; Base Security MCP APIs.</h1>
       <p>
-        Execute 16 sub-cent security, AST slicing, orderbook arbitrage, and token compression tools via Streamable HTTP MCP (<code>/mcp</code>) or REST (<code>/api/tools/call</code>). Pay once with a <strong>Base USDC prepaid <code>X-API-Key</code></strong>, <strong>Polar.sh checkout</strong>, or per-call <strong>HTTP 402</strong>. <strong>1 free trial call every 24h.</strong>
+        1-line MCP server for Polymarket vs Deribit DVOL Black-Scholes arbitrage, geo-unblocked multi-venue orderbook/funding telemetry, Base honeypot audits, and token/security tools. Pay via <strong>Polar.sh Card ($5 pack)</strong>, <strong>Base USDC</strong>, or <strong>HTTP 402</strong>. <strong>5 free calls/day.</strong>
       </p>
+      <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+        <a href="#topup" class="btn btn-success">Get $5 API Key (Card / USDC)</a>
+        <a href="#playground" class="btn btn-primary">Try 5 Free Calls in Sandbox</a>
+      </div>
       <div class="install-row">
         <button type="button" class="install-pill" data-copy-cmd="npx -y souq-mcp">
           <span class="cmd-prefix">$</span>
@@ -810,24 +815,24 @@
     <!-- Live Telemetry KPIs -->
     <section class="telemetry-bar" aria-label="Live telemetry summary">
       <div class="stat-card">
-        <div class="stat-label">Total Edge Requests</div>
-        <div class="stat-value" id="statTotalRequests">...</div>
-        <div class="stat-sub">Public aggregate telemetry</div>
+        <div class="stat-label" id="statLabel1">Live Market Venues</div>
+        <div class="stat-value" id="statTotalRequests">6+ Venues</div>
+        <div class="stat-sub" id="statSub1">Polymarket, Deribit, Hyperliquid, Coinbase, Kraken</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Unique Visitors &amp; Agents</div>
-        <div class="stat-value" id="statUniqueVisitors">...</div>
-        <div class="stat-sub" id="statTopToolLabel">Across HTTP &amp; /mcp calls</div>
+        <div class="stat-label" id="statLabel2">Daily Free Evaluation</div>
+        <div class="stat-value" id="statUniqueVisitors">5 Calls / Day</div>
+        <div class="stat-sub" id="statTopToolLabel">Across HTTP &amp; Streamable /mcp</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">AI Agents / Bots Detected</div>
-        <div class="stat-value" id="statAiAgents">...</div>
-        <div class="stat-sub" id="statActiveToolsSub">16 active paid MCP tools</div>
+        <div class="stat-label" id="statLabel3">Active MCP Tools</div>
+        <div class="stat-value" id="statAiAgents">16 Tools</div>
+        <div class="stat-sub" id="statActiveToolsSub">$0.01–$0.03 / call + auto-refund on error</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Settled / Prepaid Volume</div>
-        <div class="stat-value" id="statSettledUsd">$0.00</div>
-        <div class="stat-sub" id="statSettlementMeta">Base L2 USDC + Polar MoR</div>
+        <div class="stat-label" id="statLabel4">Settlement Rails</div>
+        <div class="stat-value" id="statSettledUsd">Card + USDC</div>
+        <div class="stat-sub" id="statSettlementMeta">Polar.sh MoR &amp; Base L2 x402</div>
       </div>
     </section>
 
@@ -835,7 +840,7 @@
     <section id="playground">
       <h2 class="section-title">
         <span>Live Agent Evaluation Sandbox (All 16 Tools)</span>
-        <span class="badge badge-green">1 Free Daily Trial / IP</span>
+        <span class="badge badge-green">5 Free Daily Calls / IP</span>
       </h2>
       <p class="section-subtitle">
         Pick any of the 16 live tools below, edit its JSON parameters directly, and execute against the Koyeb edge server. Saved <code>souq_live_...</code> keys persist in browser <code>localStorage</code>.
@@ -928,12 +933,12 @@
             <div class="stat-value" id="rawCost" style="font-size: 1.35rem; color: var(--red);">$60.00</div>
           </div>
           <div class="calc-metric-item">
-            <div class="stat-label">SOUQ Edge Cost ($0.01/20K)</div>
-            <div class="stat-value" id="souqCost" style="font-size: 1.35rem; color: var(--green);">$10.00</div>
+            <div class="stat-label">Compressed LLM + SOUQ (70% cut)</div>
+            <div class="stat-value" id="souqCost" style="font-size: 1.35rem; color: var(--green);">$28.00</div>
           </div>
           <div class="calc-metric-item" style="grid-column: span 2; background: var(--green-light); border-color: rgba(16, 185, 129, 0.4);">
-            <div class="stat-label" style="color: var(--green);">Net Monthly Savings</div>
-            <div class="stat-value" id="netSaved" style="font-size: 1.5rem; color: #fff;">$50.00 (83%)</div>
+            <div class="stat-label" style="color: var(--green);">Net Monthly Savings (70% avg reduction on 20K-token payloads)</div>
+            <div class="stat-value" id="netSaved" style="font-size: 1.5rem; color: #fff;">$32.00 (53%)</div>
           </div>
         </div>
       </div>
@@ -1268,7 +1273,7 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
     const appState = {
       tools: [...FALLBACK_TOOLS],
       mcpDescriptions: {},
-      selectedTool: 'prompt_injection_firewall',
+      selectedTool: 'prediction_market_arbitrage_radar',
       activeCategory: 'ALL',
       recipientWallet: '',
       pendingClaimToken: '',
@@ -1587,7 +1592,10 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
         }
 
         listEl.innerHTML = '';
-        items.forEach((item) => {
+        const readyItems = items.filter((item) => item.ready === true);
+        const upcomingItems = items.filter((item) => item.ready !== true);
+
+        const renderProductRow = (item) => {
           const isReady = item.ready === true;
           const row = document.createElement('div');
           row.className = 'product-item' + (isReady ? '' : ' disabled-product');
@@ -1607,7 +1615,7 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
 
           const stateBadge = document.createElement('span');
           stateBadge.className = 'badge ' + (isReady ? 'badge-green' : 'badge-amber');
-          stateBadge.textContent = isReady ? 'Ready' : 'Coming Soon — Asset Fulfillment Configuring';
+          stateBadge.textContent = isReady ? 'Ready' : 'Coming Soon';
 
           titleRow.appendChild(nameEl);
           titleRow.appendChild(stateBadge);
@@ -1644,8 +1652,26 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
 
           row.appendChild(info);
           row.appendChild(actionWrap);
-          listEl.appendChild(row);
-        });
+          return row;
+        };
+
+        readyItems.forEach((item) => listEl.appendChild(renderProductRow(item)));
+
+        if (upcomingItems.length > 0) {
+          const details = document.createElement('details');
+          details.style.marginTop = '8px';
+          const summary = document.createElement('summary');
+          summary.className = 'muted-note';
+          summary.style.cursor = 'pointer';
+          summary.textContent = `Upcoming Digital Packs (${upcomingItems.length})`;
+          details.appendChild(summary);
+          const wrap = document.createElement('div');
+          wrap.className = 'product-list';
+          wrap.style.marginTop = '8px';
+          upcomingItems.forEach((item) => wrap.appendChild(renderProductRow(item)));
+          details.appendChild(wrap);
+          listEl.appendChild(details);
+        }
       } catch (err) {
         listEl.innerHTML = '';
         const errDiv = document.createElement('div');
@@ -2189,12 +2215,14 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
 
       const rawCost = (val / 1000000.0) * 3.0;
       const numCalls = val / 20000.0;
-      const souqCost = numCalls * 0.01;
-      const net = rawCost - souqCost;
+      const souqFee = numCalls * 0.01;
+      const remainingLlmCost = rawCost * 0.30; // 70% average compression -> 30% tokens remain
+      const totalWithSouq = remainingLlmCost + souqFee;
+      const net = Math.max(0, rawCost - totalWithSouq);
       const pct = rawCost > 0 ? Math.round((net / rawCost) * 100) : 0;
 
       document.getElementById('rawCost').textContent = '$' + rawCost.toFixed(2);
-      document.getElementById('souqCost').textContent = '$' + souqCost.toFixed(2);
+      document.getElementById('souqCost').textContent = '$' + totalWithSouq.toFixed(2);
       document.getElementById('netSaved').textContent = '$' + net.toFixed(2) + ' (' + pct + '%)';
     }
 
@@ -2209,14 +2237,25 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
         const sales = data.sales_summary || {};
         const cats = traffic.client_categories || {};
         const topTools = Array.isArray(data.top_tools) ? data.top_tools : [];
+        const totalReqs = Number(traffic.total_requests || 0);
+        const paidOrders = Number(sales.confirmed_paid_orders || 0);
 
-        document.getElementById('statTotalRequests').textContent = Number(traffic.total_requests || 0).toLocaleString();
-        document.getElementById('statUniqueVisitors').textContent = Number(traffic.unique_visitors || 0).toLocaleString();
-        const agentsCount = Number(cats.AI_AGENT || 0) + Number(cats.SEARCH_BOT || 0) + Number(cats.CLI_TOOL || 0);
-        document.getElementById('statAiAgents').textContent = agentsCount.toLocaleString();
-
-        const settledTotal = Number(sales.total_settled_usd ?? data.settled_volume_usdc ?? 0);
-        document.getElementById('statSettledUsd').textContent = '$' + settledTotal.toFixed(2);
+        if (paidOrders > 0 && totalReqs >= 500) {
+          document.getElementById('statLabel1').textContent = 'Total Edge Requests';
+          document.getElementById('statTotalRequests').textContent = totalReqs.toLocaleString();
+          document.getElementById('statLabel2').textContent = 'Unique Visitors & Agents';
+          document.getElementById('statUniqueVisitors').textContent = Number(traffic.unique_visitors || 0).toLocaleString();
+          document.getElementById('statLabel3').textContent = 'AI Agents / Bots Detected';
+          const agentsCount = Number(cats.AI_AGENT || 0) + Number(cats.SEARCH_BOT || 0) + Number(cats.CLI_TOOL || 0);
+          document.getElementById('statAiAgents').textContent = agentsCount.toLocaleString();
+          document.getElementById('statLabel4').textContent = 'Settled / Prepaid Volume';
+          const settledTotal = Number(sales.total_settled_usd ?? data.settled_volume_usdc ?? 0);
+          document.getElementById('statSettledUsd').textContent = '$' + settledTotal.toFixed(2);
+          const settlementMeta = document.getElementById('statSettlementMeta');
+          if (settlementMeta && typeof sales.prepaid_active_accounts === 'number') {
+            settlementMeta.textContent = `${paidOrders} settled | ${sales.prepaid_active_accounts} prepaid keys`;
+          }
+        }
 
         const topLabel = document.getElementById('statTopToolLabel');
         if (topLabel && topTools.length > 0 && topTools[0].tool) {
@@ -2226,11 +2265,6 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
         const activeToolsSub = document.getElementById('statActiveToolsSub');
         if (activeToolsSub && typeof data.active_tools === 'number') {
           activeToolsSub.textContent = `${data.active_tools} active paid MCP tools`;
-        }
-
-        const settlementMeta = document.getElementById('statSettlementMeta');
-        if (settlementMeta && typeof sales.prepaid_active_accounts === 'number') {
-          settlementMeta.textContent = `${sales.confirmed_paid_orders || 0} settled | ${sales.prepaid_active_accounts} prepaid keys`;
         }
       } catch (err) {
         console.debug('Telemetry fetch skipped:', err);

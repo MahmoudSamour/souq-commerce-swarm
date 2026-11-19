@@ -1,6 +1,6 @@
 {
   "name": "souq-mcp",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Official 1-line MCP client and agent toolkit for SOUQ autonomous micro-services on Base L2",
   "bin": {
     "souq-mcp": "./bin/souq-mcp.js"
@@ -19,7 +19,10 @@
     "token-savings",
     "x402"
   ],
-  "author": "SOUQ Autonomous Commerce Swarm <dev@souq-swarm.ai>",
+  "author": "SOUQ Commerce Swarm (https://github.com/MahmoudSamour/souq-commerce-swarm/issues)",
+  "bugs": {
+    "url": "https://github.com/MahmoudSamour/souq-commerce-swarm/issues"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"
