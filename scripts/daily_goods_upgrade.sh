@@ -75,6 +75,25 @@ index_res = herald.get('indexnow', {})
 print(f'   ✅ IndexNow Search Broadcast: HTTP {index_res.get(\"status\")} ({index_res.get(\"urls_submitted\")} machine URLs submitted)')
 "
 
+echo ""
+echo "📄 [Track 2 Pure-Text Feed] Updating docs/DAILY_POLYMARKET_ALPHA.md..."
+if ! python3 "$DIR/scripts/generate_daily_alpha_md.py"; then
+    echo "⚠️ Alpha feed generation failed — auto-corrector retrying in 3s..."
+    sleep 3
+    python3 "$DIR/scripts/generate_daily_alpha_md.py" || echo "⚠️ Alpha feed retry failed; continuing with existing docs."
+fi
+
+if [ -s "$DIR/docs/DAILY_POLYMARKET_ALPHA.md" ]; then
+    echo "✅ Pure-text alpha feed verified: $(wc -c < "$DIR/docs/DAILY_POLYMARKET_ALPHA.md") bytes"
+fi
+
+echo ""
+echo "🔄 [GitHub Sync] Pushing pure-text feeds & swarm state to origin/main..."
+if ! bash "$DIR/scripts/sync_github.sh"; then
+    echo "⚠️ sync_github.sh failed — auto-corrector attempting git pull --rebase & push..."
+    git pull --rebase origin main && git push origin main || echo "⚠️ GitHub sync deferred to next cycle."
+fi
+
 echo "===================================================================="
 echo "🎉 SOUQ AUTONOMOUS UPDATE TEAM LEAD PIPELINE COMPLETED AT: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "===================================================================="
