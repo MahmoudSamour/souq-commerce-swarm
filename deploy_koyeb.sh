@@ -81,7 +81,7 @@ if [ -n "$UNPUSHED" ]; then
 fi
 
 echo "Pushing reviewed HEAD commit ('${MSG}') to origin/main..."
-git push origin main
+timeout 45 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 push -4 origin main
 
 echo ""
 echo "===================================================================="

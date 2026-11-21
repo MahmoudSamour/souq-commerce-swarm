@@ -1098,6 +1098,46 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
       </div>
     </section>
 
+    <!-- Two-Sided Partner Marketplace Portal -->
+    <section id="marketplace-sell" style="margin-top: 2.5rem;">
+      <div class="section-header">
+        <div>
+          <h2>Partner Marketplace — List Your AI Agent or API</h2>
+          <p class="section-sub">Publish any HTTPS AI tool or agent webhook in 60 seconds. Keep <strong>80% of every paid call</strong> in Base L2 USDC (SOUQ handles checkout, billing, and Sayf security firewall for a 20% fee).</p>
+        </div>
+        <span class="badge badge-primary">80% Seller / 20% SOUQ</span>
+      </div>
+
+      <div class="grid-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
+        <div class="card">
+          <h3 style="margin-top: 0;">1. List a New Tool or Agent</h3>
+          <div style="display: flex; flex-direction: column; gap: 0.65rem;">
+            <input id="mktSellerName" class="input" type="text" placeholder="Your Name or Agent Studio (e.g., AlphaBot Labs)">
+            <input id="mktTitle" class="input" type="text" placeholder="Tool Title (e.g., Whale Sentiment Radar)">
+            <input id="mktDesc" class="input" type="text" placeholder="What it does in plain English (min 10 chars)">
+            <input id="mktEndpoint" class="input" type="url" placeholder="Public HTTPS Endpoint (https://your-api.com/run)">
+            <div style="display: flex; gap: 0.65rem;">
+              <input id="mktPrice" class="input" style="max-width: 150px;" type="number" min="0.005" max="5.00" step="0.005" value="0.02" placeholder="Price USD">
+              <input id="mktWallet" class="input" style="flex: 1;" type="text" placeholder="Base L2 USDC Wallet (0x...)">
+            </div>
+            <button type="button" id="btnListMarketplaceTool" class="btn btn-primary">Publish Tool &amp; Keep 80%</button>
+          </div>
+          <pre id="mktRegisterResult" class="result-pre" style="margin-top: 0.75rem; min-height: 90px; max-height: 200px;">// Your new MCP tool_id (ext_...) and private X-Seller-Key will appear here.</pre>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top: 0;">2. Seller Earnings &amp; Base USDC Payout</h3>
+          <p class="muted-note" style="margin-top: 0;">Paste your <code>X-Seller-Key</code> to view live calls, 80% revenue balance, and request a Base L2 USDC payout ($10 minimum).</p>
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <input id="mktSellerKeyInput" class="input" style="flex: 1; min-width: 200px;" type="password" placeholder="souq_seller_...">
+            <button type="button" id="btnCheckSellerDash" class="btn btn-ghost btn-sm">Check Earnings</button>
+            <button type="button" id="btnRequestSellerPayout" class="btn btn-success btn-sm">Request USDC Payout</button>
+          </div>
+          <pre id="mktSellerResult" class="result-pre" style="margin-top: 0.75rem; min-height: 150px; max-height: 240px;">// Seller balance, active listings, and payout receipt will appear here.</pre>
+        </div>
+      </div>
+    </section>
+
     <!-- Machine Specs Footer -->
     <div class="specs-box">
       <div>Vendor: <span class="val">SOUQ Autonomous Commerce Swarm (v0.3.0)</span></div>
@@ -2363,6 +2403,75 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
       loadPolarProducts();
       fetchTelemetryStats();
       handlePolarRedirectOnLoad();
+
+      // Wire Two-Sided Partner Marketplace handlers
+      const btnListMkt = document.getElementById('btnListMarketplaceTool');
+      if (btnListMkt) {
+        btnListMkt.addEventListener('click', async () => {
+          const out = document.getElementById('mktRegisterResult');
+          out.textContent = '// Running Amin compliance & SSRF safety check...';
+          try {
+            const payload = {
+              seller_name: document.getElementById('mktSellerName').value.trim() || 'External Agent Builder',
+              title: document.getElementById('mktTitle').value.trim(),
+              tool_slug: document.getElementById('mktTitle').value.trim(),
+              description: document.getElementById('mktDesc').value.trim(),
+              endpoint_url: document.getElementById('mktEndpoint').value.trim(),
+              price_usdc: parseFloat(document.getElementById('mktPrice').value || '0.02'),
+              payout_wallet_base: document.getElementById('mktWallet').value.trim(),
+            };
+            const res = await fetch('/api/marketplace/listings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            out.textContent = JSON.stringify(data, null, 2);
+            if (res.ok && data.seller_api_key) {
+              document.getElementById('mktSellerKeyInput').value = data.seller_api_key;
+              loadCatalogAndSchemas();
+            }
+          } catch (err) {
+            out.textContent = '// Error: ' + err.message;
+          }
+        });
+      }
+
+      const btnSellerDash = document.getElementById('btnCheckSellerDash');
+      if (btnSellerDash) {
+        btnSellerDash.addEventListener('click', async () => {
+          const out = document.getElementById('mktSellerResult');
+          const sk = (document.getElementById('mktSellerKeyInput').value || '').trim();
+          if (!sk) { out.textContent = '// Paste your X-Seller-Key first.'; return; }
+          out.textContent = '// Loading seller dashboard...';
+          try {
+            const res = await fetch('/api/marketplace/seller/dashboard', { headers: { 'X-Seller-Key': sk } });
+            out.textContent = JSON.stringify(await res.json(), null, 2);
+          } catch (err) {
+            out.textContent = '// Error: ' + err.message;
+          }
+        });
+      }
+
+      const btnSellerPayout = document.getElementById('btnRequestSellerPayout');
+      if (btnSellerPayout) {
+        btnSellerPayout.addEventListener('click', async () => {
+          const out = document.getElementById('mktSellerResult');
+          const sk = (document.getElementById('mktSellerKeyInput').value || '').trim();
+          if (!sk) { out.textContent = '// Paste your X-Seller-Key first.'; return; }
+          out.textContent = '// Queuing Base L2 USDC payout...';
+          try {
+            const res = await fetch('/api/marketplace/seller/payout', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Seller-Key': sk },
+              body: JSON.stringify({}),
+            });
+            out.textContent = JSON.stringify(await res.json(), null, 2);
+          } catch (err) {
+            out.textContent = '// Error: ' + err.message;
+          }
+        });
+      }
 
       setInterval(fetchTelemetryStats, 20000);
     });

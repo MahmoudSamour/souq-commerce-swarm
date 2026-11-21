@@ -90,8 +90,10 @@ fi
 echo ""
 echo "🔄 [GitHub Sync] Pushing pure-text feeds & swarm state to origin/main..."
 if ! bash "$DIR/scripts/sync_github.sh"; then
-    echo "⚠️ sync_github.sh failed — auto-corrector attempting git pull --rebase & push..."
-    git pull --rebase origin main && git push origin main || echo "⚠️ GitHub sync deferred to next cycle."
+    echo "⚠️ sync_github.sh failed — auto-corrector attempting fast IPv4 git pull --rebase & push..."
+    (timeout 45 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 pull -4 --rebase origin main && \
+     timeout 45 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 push -4 origin main) || \
+     echo "⚠️ GitHub sync deferred to next cycle."
 fi
 
 echo "===================================================================="

@@ -376,6 +376,16 @@ class RaisConductor:
             "top_tools": traffic_summary.get("top_tools", []),
         }
 
+        # Squad Agent 7: Marketplace Health & Auto-Pruning Sentinel (Ra'is)
+        try:
+            from agents.treasury.marketplace_registry import MarketplaceRegistry
+            mkt_reg = MarketplaceRegistry(db_path=getattr(self, "db_path", "data/souq_treasury_lake.duckdb"))
+            marketplace_health = mkt_reg.audit_active_listings(timeout_s=3.0)
+            marketplace_kpis = mkt_reg.get_marketplace_kpis()
+        except Exception as mkt_exc:
+            marketplace_health = {"checked_listings": 0, "suspended_listings": 0, "error": str(mkt_exc)}
+            marketplace_kpis = {}
+
         return {
             "cycle_timestamp": timestamp,
             "status": overall_status,
@@ -422,6 +432,8 @@ class RaisConductor:
                 "endpoints_health": herald_audit.get("overall_status"),
                 "indexnow": herald_index
             },
+            "marketplace_health": marketplace_health,
+            "marketplace_kpis": marketplace_kpis,
             "payment_rails": {
                 "rail_a_agent_crypto": "ACTIVE (HTTP 402 + Base USDC)",
                 "rail_b_human_mor": (

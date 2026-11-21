@@ -49,6 +49,7 @@ from agents.treasury.crypto_receipt_engine import CryptoReceiptEngine
 from agents.treasury.api_key_ledger import APIKeyLedger
 from agents.treasury.x402_gateway import X402PaymentGateway, _get_tx_lock
 from agents.treasury.polar_adapter import PolarAdapter, POLAR_PRODUCTS
+from agents.treasury.marketplace_registry import MarketplaceRegistry
 
 DB_TARGET, _IS_POSTGRES = resolve_db_target(DB_PATH)
 if not _IS_POSTGRES:
@@ -58,6 +59,7 @@ telemetry_engine = TrafficTelemetryEngine(db_path=DB_TARGET)
 negotiation_tracker = NegotiationTracker(db_path=DB_TARGET)
 receipt_engine = CryptoReceiptEngine(db_path=DB_TARGET, receipts_dir=RECEIPTS_DIR)
 api_key_ledger = APIKeyLedger(db_path=DB_TARGET)
+marketplace_registry = MarketplaceRegistry(db_path=DB_TARGET)
 payment_gw = X402PaymentGateway(
     receipt_engine=receipt_engine,
     negotiation_tracker=negotiation_tracker,
@@ -1097,6 +1099,9 @@ def _dispatch_tool(tool_name: str, body: Dict[str, Any]) -> Dict[str, Any]:
                 res["error"] = "invalid_url"
         return res
 
+    if tool_name.startswith("ext_"):
+        return marketplace_registry.execute_external_tool(tool_name, body)
+
     return _err("unknown_tool", f"Unknown tool '{tool_name}'")
 
 
@@ -1111,16 +1116,23 @@ async def _authorize_and_execute_tool(
     Guarantees buyers are NEVER charged for tool errors, validation rejections, or outages.
     """
     call_start = time.time()
+    is_external_tool = False
+    ext_listing: Optional[Dict[str, Any]] = None
     if not tool_name or tool_name not in TOOL_ECONOMICS:
-        return (
-            404,
-            {
-                "error": "Unknown tool",
-                "tool": tool_name,
-                "available_tools": list(TOOL_ECONOMICS.keys()),
-            },
-            {"X-Souq-Billing": "UNKNOWN_TOOL"},
-        )
+        if tool_name and tool_name.startswith("ext_"):
+            ext_listing = await anyio.to_thread.run_sync(marketplace_registry.get_listing, tool_name)
+            if ext_listing and ext_listing.get("status") == "ACTIVE":
+                is_external_tool = True
+        if not is_external_tool:
+            return (
+                404,
+                {
+                    "error": "Unknown tool",
+                    "tool": tool_name,
+                    "available_tools": list(TOOL_ECONOMICS.keys()),
+                },
+                {"X-Souq-Billing": "UNKNOWN_TOOL"},
+            )
 
     if not isinstance(body, dict):
         return (
@@ -1129,7 +1141,15 @@ async def _authorize_and_execute_tool(
             {"X-Souq-Tool": tool_name, "X-Souq-Billing": "INVALID_ARGS"},
         )
 
-    eco = TOOL_ECONOMICS[tool_name]
+    if is_external_tool and ext_listing is not None:
+        eco = {
+            "price_usdc": float(ext_listing["price_usdc"]),
+            "avg_tokens_saved": 5000,
+            "est_inference_savings_usd": round(float(ext_listing["price_usdc"]) * 3.0, 4),
+            "net_roi_pct": 200,
+        }
+    else:
+        eco = TOOL_ECONOMICS[tool_name]
     price = eco["price_usdc"]
     user_agent = request.headers.get("User-Agent", "anonymous-agent")
     client_ip = _extract_client_ip(request)
@@ -1230,6 +1250,11 @@ async def _authorize_and_execute_tool(
 
         billing_header = "PAID_PREPAID_CREDIT"
         extra_headers["X-Souq-Credit-Remaining-USD"] = str(settlement.get("balance_remaining_usd", 0.0))
+        if is_external_tool:
+            split_info = await anyio.to_thread.run_sync(
+                partial(marketplace_registry.record_split_settlement, tool_name, price, "prepaid_api_key")
+            )
+            settlement["marketplace_split"] = split_info
         await anyio.to_thread.run_sync(
             partial(
                 negotiation_tracker.log_negotiation,
@@ -1334,10 +1359,15 @@ async def _authorize_and_execute_tool(
             return http_code, res, {"X-Souq-Tool": tool_name, "X-Souq-Billing": "INVALID_PAYMENT"}
         if outcome_kind == "tool_failed":
             return http_code, res, {"X-Souq-Tool": tool_name, "X-Souq-Billing": "TX_UNCONSUMED_ERROR"}
+        if is_external_tool:
+            split_info = await anyio.to_thread.run_sync(
+                partial(marketplace_registry.record_split_settlement, tool_name, price, "x402_base_usdc")
+            )
+            settlement["marketplace_split"] = split_info
 
-    # Priority 3: 1 DB-persisted Free Trial per IP hash per 24h (only consumed if tool succeeds)
+    # Priority 3: 1 DB-persisted Free Trial per IP hash per 24h (only consumed if tool succeeds; 1st-party tools only)
     else:
-        enable_free_trial = os.getenv("SOUQ_ENABLE_FREE_TRIAL", "true").lower() == "true"
+        enable_free_trial = (not is_external_tool) and (os.getenv("SOUQ_ENABLE_FREE_TRIAL", "true").lower() == "true")
         trial_eligible = (
             await anyio.to_thread.run_sync(_check_free_trial_eligible, client_ip_hash)
             if enable_free_trial
@@ -1614,16 +1644,31 @@ async def api_catalog(request):
             "settlement_rail": "Base L2 USDC (x402) or Prepaid X-API-Key",
         })
 
+    ext_listings = await anyio.to_thread.run_sync(marketplace_registry.list_active_listings)
+    for ext in ext_listings:
+        tools_list.append({
+            "name": ext["tool_id"],
+            "title": ext["title"],
+            "description": ext["description"],
+            "category": ext["category"],
+            "seller_name": ext["seller_name"],
+            "price_usdc": ext["price_usdc"],
+            "marketplace_partner": True,
+            "settlement_rail": "Base L2 USDC (x402) or Prepaid X-API-Key (80% Seller / 20% SOUQ)",
+        })
+
     return JSONResponse({
         "vendor": "SOUQ Autonomous Commerce Swarm",
-        "version": "0.3.0",
+        "version": "0.3.1",
         "protocol": "x402-v1.0",
         "network": "Base",
         "currency": "USDC",
         "recipient_wallet": payment_gw.recipient_wallet,
         "mcp_http_endpoint": "/mcp",
         "topup_endpoint": "/api/credits/topup",
+        "marketplace_list_endpoint": "/api/marketplace/listings",
         "tools": tools_list,
+        "marketplace_listings": ext_listings,
         "digital_products": polar_adapter.list_catalog(),
     })
 
@@ -2012,10 +2057,18 @@ async def mcp_http_endpoint(request):
         return JSONResponse({"jsonrpc": "2.0", "id": msg_id, "result": {}})
 
     if method == "tools/list":
+        ext_listings = await anyio.to_thread.run_sync(marketplace_registry.list_active_listings)
+        dynamic_tools = list(MCP_TOOLS_SCHEMA)
+        for ext in ext_listings:
+            dynamic_tools.append({
+                "name": ext["tool_id"],
+                "description": f"[Partner: {ext['seller_name']} | ${ext['price_usdc']:.3f}/call] {ext['description']}",
+                "inputSchema": ext.get("input_schema") or {"type": "object", "properties": {}},
+            })
         return JSONResponse({
             "jsonrpc": "2.0",
             "id": msg_id,
-            "result": {"tools": MCP_TOOLS_SCHEMA},
+            "result": {"tools": dynamic_tools},
         })
 
     if method == "tools/call":
@@ -2130,6 +2183,7 @@ async def api_stats(request):
     confirmed_orders, confirmed_volume_usd, prepaid_keys_count, prepaid_volume_usd = await anyio.to_thread.run_sync(
         _fetch_sales_kpis_sync
     )
+    marketplace_kpis = await anyio.to_thread.run_sync(marketplace_registry.get_marketplace_kpis)
 
     if is_admin:
         traffic_out = traffic
@@ -2140,15 +2194,16 @@ async def api_stats(request):
 
     return JSONResponse({
         "service": "SOUQ Autonomous Agent Commerce Swarm",
-        "version": "0.3.0",
+        "version": "0.3.1",
         "status": "online",
-        "settlement_rail": "Base L2 USDC (x402) + Prepaid X-API-Key + Polar MoR",
+        "settlement_rail": "Base L2 USDC (x402) + Prepaid X-API-Key + Polar MoR + Partner 80/20 Split",
         "recipient_wallet": payment_gw.recipient_wallet,
         "total_settled_orders": confirmed_orders,
         "settled_volume_usdc": round(confirmed_volume_usd, 6),
-        "active_tools": len(TOOL_ECONOMICS),
+        "active_tools": len(TOOL_ECONOMICS) + marketplace_kpis["active_listings"],
         "uptime": round(max(0.0, time.time() - _SERVER_START_TS), 1),
         "top_tools": traffic_out.get("top_tools", []),
+        "marketplace_kpis": marketplace_kpis,
         "sales_summary": {
             "confirmed_paid_orders": confirmed_orders,
             "total_settled_usd": round(confirmed_volume_usd, 6),
@@ -2204,6 +2259,82 @@ async def api_swarm_cycle(request):
         )
 
 
+async def api_marketplace_listings(request):
+    """GET lists active partner tools; POST registers a new external agent/human tool after Amin screening."""
+    if request.method == "GET":
+        listings = await anyio.to_thread.run_sync(marketplace_registry.list_active_listings)
+        kpis = await anyio.to_thread.run_sync(marketplace_registry.get_marketplace_kpis)
+        return JSONResponse({
+            "status": "online",
+            "commission_policy": {
+                "seller_share_pct": 80,
+                "souq_commission_pct": 20,
+                "min_payout_usd": 10.0,
+                "payout_rail": "Base L2 USDC",
+            },
+            "kpis": kpis,
+            "listings": listings,
+        })
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON object payload"}, status_code=400)
+    if not isinstance(body, dict):
+        return JSONResponse({"error": "Invalid JSON object payload"}, status_code=400)
+
+    existing_seller_key = (
+        request.headers.get("X-Seller-Key")
+        or body.get("seller_api_key")
+        or ""
+    ).strip() or None
+
+    ok, result = await anyio.to_thread.run_sync(
+        partial(
+            marketplace_registry.register_seller_and_listing,
+            tool_slug=str(body.get("tool_slug") or body.get("slug") or body.get("title") or ""),
+            title=str(body.get("title") or ""),
+            description=str(body.get("description") or ""),
+            endpoint_url=str(body.get("endpoint_url") or ""),
+            price_usdc=body.get("price_usdc", 0.02),
+            payout_wallet_base=str(body.get("payout_wallet_base") or ""),
+            seller_name=str(body.get("seller_name") or "External Agent Builder"),
+            category=str(body.get("category") or "External Agent Tool"),
+            contact_handle=str(body.get("contact_handle") or ""),
+            input_schema=body.get("input_schema") if isinstance(body.get("input_schema"), dict) else None,
+            existing_seller_key=existing_seller_key,
+        )
+    )
+    return JSONResponse(result, status_code=201 if ok else 400)
+
+
+async def api_marketplace_seller_dashboard(request):
+    """Returns seller earnings (80% split), calls, payout status, and listings via X-Seller-Key."""
+    seller_key = (request.headers.get("X-Seller-Key") or "").strip()
+    if not seller_key:
+        return JSONResponse({"error": "Missing X-Seller-Key header"}, status_code=401)
+    dash = await anyio.to_thread.run_sync(marketplace_registry.get_seller_dashboard, seller_key)
+    if not dash:
+        return JSONResponse({"error": "Invalid X-Seller-Key"}, status_code=401)
+    return JSONResponse(dash, status_code=200)
+
+
+async def api_marketplace_seller_payout(request):
+    """Queues a Base L2 USDC payout for a seller once earned_balance_usd >= $10.00."""
+    seller_key = (request.headers.get("X-Seller-Key") or "").strip()
+    if not seller_key:
+        return JSONResponse({"error": "Missing X-Seller-Key header"}, status_code=401)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    amount_usd = body.get("amount_usd") if isinstance(body, dict) else None
+    ok, result = await anyio.to_thread.run_sync(
+        partial(marketplace_registry.request_seller_payout, seller_key, amount_usd=amount_usd)
+    )
+    return JSONResponse(result, status_code=200 if ok else 400)
+
+
 routes = [
     Route("/", homepage),
     Route("/favicon.ico", favicon_ico, methods=["GET"]),
@@ -2223,6 +2354,9 @@ routes = [
     Route("/api/cyber/threat-intel", api_cyber_threat_intel),
     Route("/api/stats", api_stats),
     Route("/api/tools/call", api_tool_call, methods=["POST"]),
+    Route("/api/marketplace/listings", api_marketplace_listings, methods=["GET", "POST"]),
+    Route("/api/marketplace/seller/dashboard", api_marketplace_seller_dashboard, methods=["GET"]),
+    Route("/api/marketplace/seller/payout", api_marketplace_seller_payout, methods=["POST"]),
     Route("/api/credits/topup", api_credits_topup, methods=["POST"]),
     Route("/api/credits/balance", api_credits_balance, methods=["GET"]),
     Route("/api/checkout/create", api_checkout_create, methods=["POST"]),
