@@ -18,6 +18,6 @@ else
     echo "📦 Committed local changes."
 fi
 
-timeout 45 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 push -4 origin main
+GIT_TERMINAL_PROMPT=0 timeout -k 5 30 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 push -4 origin main
 echo "🚀 Successfully synchronized with origin/main!"
 
