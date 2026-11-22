@@ -153,7 +153,10 @@ def run_gateway_audit() -> Dict[str, Any]:
         if org_res.status_code == 200:
             org = org_res.json()
             report["polar"]["status"] = org.get("status")
-            report["polar"]["payouts_ready"] = bool(org.get("payouts_enabled", False))
+            report["polar"]["payouts_ready"] = bool(
+                org.get("payouts_enabled")
+                or (org.get("status") == "active" and org.get("payout_account_id"))
+            )
             if not report["polar"]["payouts_ready"]:
                 report["warnings"].append("polar_payouts_disabled")
         else:
