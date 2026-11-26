@@ -12,11 +12,18 @@ Autonomous buyer agent executing an end-to-end canary verification cycle:
 import argparse
 import json
 import os
+import secrets
 import sys
 import time
 import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from agents.treasury.wallet_gate import WalletEnforcementGate
 
 DEFAULT_EDGE_URL = os.getenv(
     "SOUQ_EDGE_URL",
@@ -109,9 +116,25 @@ class CanaryBuyerAgent:
             raise RuntimeError("Signed transaction object exposes neither raw_transaction nor rawTransaction.")
         return raw_tx
 
-    def _send_live_base_usdc(self, recipient: str, price_usdc: str) -> str:
+    def _send_live_base_usdc(
+        self,
+        recipient: str,
+        price_usdc: str,
+        work_order_id: Optional[str] = None,
+        quote_hash: Optional[str] = None,
+    ) -> str:
         from eth_account import Account
         from web3 import Web3
+
+        gate = WalletEnforcementGate(
+            allowed_recipients=[EXPECTED_RECIPIENT],
+            ledger_path=os.getenv(
+                "SOUQ_WALLET_GATE_LEDGER",
+                os.path.join(PROJECT_ROOT, "data", "wallet_gate_ledger.json"),
+            ),
+        )
+        wo_id = (work_order_id or f"wo_canary_{secrets.token_hex(8)}").strip()
+        amount_val = float(price_usdc)
 
         w3 = Web3(Web3.HTTPProvider(os.getenv("BASE_RPC_URL", "https://mainnet.base.org")))
         acct = Account.from_key(self.buyer_private_key)
@@ -127,7 +150,7 @@ class CanaryBuyerAgent:
                 }
             ],
         )
-        amount_units = int(round(float(price_usdc) * 1_000_000))
+        amount_units = int(round(amount_val * 1_000_000))
         nonce = w3.eth.get_transaction_count(acct.address, "pending")
         base_gas_price = max(int(w3.eth.gas_price), w3.to_wei(0.01, "gwei"))
         max_priority = w3.to_wei(0.005, "gwei")
@@ -143,11 +166,15 @@ class CanaryBuyerAgent:
                 "chainId": 8453,
             }
         )
-        signed = acct.sign_transaction(tx)
-        raw_tx = self._extract_raw_tx(signed)
-        tx_hash_hex = w3.eth.send_raw_transaction(raw_tx).hex()
-        if not tx_hash_hex.startswith("0x"):
-            tx_hash_hex = f"0x{tx_hash_hex}"
+        tx_hash_hex = gate.authorize_and_broadcast(
+            w3=w3,
+            tx=tx,
+            sign_fn=lambda unsigned_tx: self._extract_raw_tx(acct.sign_transaction(unsigned_tx)),
+            recipient=recipient,
+            amount_usdc=amount_val,
+            work_order_id=wo_id,
+            quote_hash=quote_hash,
+        )
 
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash_hex, timeout=45)
         if receipt.get("status") != 1:
@@ -159,7 +186,7 @@ class CanaryBuyerAgent:
         mcp_manifest_url = f"{self.base_url}/.well-known/mcp.json"
         with urllib.request.urlopen(mcp_manifest_url, timeout=15) as r:
             manifest = json.loads(r.read().decode("utf-8"))
-        assert "tools" in manifest and len(manifest["tools"]) >= 16, "Manifest missing complete tool catalog"
+        assert "tools" in manifest and len(manifest["tools"]) >= 15, "Manifest missing complete tool catalog"
         assert manifest["settlement"]["recipient"] == EXPECTED_RECIPIENT, "Manifest recipient mismatch"
         self.log(
             "STAGE 1",

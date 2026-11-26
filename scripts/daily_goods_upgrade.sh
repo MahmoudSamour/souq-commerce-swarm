@@ -26,6 +26,18 @@ else
     exit 1
 fi
 
+# Unified environment loading: root .env is authoritative, config/.env is fallback
+set -a
+if [ -f "$DIR/config/.env" ]; then
+    # shellcheck disable=SC1091
+    source "$DIR/config/.env"
+fi
+if [ -f "$DIR/.env" ]; then
+    # shellcheck disable=SC1091
+    source "$DIR/.env"
+fi
+set +a
+
 TIMESTAMP="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "===================================================================="
 echo "⚡ SOUQ AUTONOMOUS UPDATE TEAM LEAD PIPELINE STARTED AT: $TIMESTAMP"
@@ -89,11 +101,13 @@ fi
 
 echo ""
 echo "🔄 [GitHub Sync] Pushing pure-text feeds & swarm state to origin/main..."
+git checkout HEAD -- .github/workflows/ 2>/dev/null || true
+git reset HEAD .github/workflows/ 2>/dev/null || true
 if ! bash "$DIR/scripts/sync_github.sh"; then
     echo "⚠️ sync_github.sh failed — auto-corrector attempting fast IPv4 git pull --rebase & push..."
-    (GIT_TERMINAL_PROMPT=0 timeout -k 5 30 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 pull -4 --rebase origin main && \
+    (GIT_TERMINAL_PROMPT=0 timeout -k 5 30 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 pull -4 --rebase -X theirs origin main && \
      GIT_TERMINAL_PROMPT=0 timeout -k 5 30 git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=15 push -4 origin main) || \
-     echo "⚠️ GitHub sync deferred to next cycle."
+     { git rebase --abort 2>/dev/null || true; echo "⚠️ GitHub sync deferred to next cycle."; }
 fi
 
 echo "===================================================================="

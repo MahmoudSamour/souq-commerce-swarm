@@ -30,11 +30,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 import uvicorn
 
-# Ensure project root is on path & load environment
+# Ensure project root is on path & load environment (root .env authoritative, config/.env fallback)
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, PROJECT_ROOT)
-load_dotenv(os.path.join(PROJECT_ROOT, "config", ".env"))
-load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"), override=False)
+load_dotenv(os.path.join(PROJECT_ROOT, "config", ".env"), override=False)
 
 MAX_PAYLOAD_BYTES = int(os.getenv("SOUQ_MAX_PAYLOAD_BYTES", "1048576"))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("SOUQ_RATE_LIMIT_PER_MINUTE", "120"))
@@ -420,6 +420,24 @@ deep_ast_auditor = DeepASTVulnerabilityAuditor()
 api_surface_scanner = APIAttackSurfaceScanner()
 
 
+HIGH_ALPHA_LIVE_FEEDS = (
+    "prediction_market_arbitrage_radar",
+    "cross_exchange_arbitrage_scanner",
+    "quant_microstructure_radar",
+    "orderbook_slippage_simulator",
+    "smart_contract_honeypot_radar",
+)
+
+LEAD_MAGNET_UTILITIES = frozenset({
+    "token_context_compressor",
+    "ast_structural_slicer",
+    "dev_api_cheatsheet_vault",
+    "synthetic_schema_verifier",
+    "prompt_injection_firewall",
+    "secret_leak_scanner",
+    "deep_ast_vulnerability_auditor",
+})
+
 TOOL_ECONOMICS = {
     "prediction_market_arbitrage_radar": {
         "price_usdc": 0.03,
@@ -427,27 +445,7 @@ TOOL_ECONOMICS = {
         "est_inference_savings_usd": 0.175,
         "net_roi_pct": 483,
         "category": "Prediction Market Arbitrage",
-    },
-    "token_context_compressor": {
-        "price_usdc": 0.01,
-        "avg_tokens_saved": 14000,
-        "est_inference_savings_usd": 0.070,
-        "net_roi_pct": 600,
-        "category": "Context Optimization",
-    },
-    "ast_structural_slicer": {
-        "price_usdc": 0.02,
-        "avg_tokens_saved": 3000,
-        "est_inference_savings_usd": 0.015,
-        "net_roi_pct": 75,
-        "category": "Code Slicing",
-    },
-    "quant_microstructure_radar": {
-        "price_usdc": 0.02,
-        "avg_tokens_saved": 15000,
-        "est_inference_savings_usd": 0.075,
-        "net_roi_pct": 275,
-        "category": "Alpha & Microstructure",
+        "tier": "PAID_HIGH_ALPHA_LIVE_FEED",
     },
     "cross_exchange_arbitrage_scanner": {
         "price_usdc": 0.03,
@@ -455,6 +453,15 @@ TOOL_ECONOMICS = {
         "est_inference_savings_usd": 0.060,
         "net_roi_pct": 100,
         "category": "Arbitrage & Basis",
+        "tier": "PAID_HIGH_ALPHA_LIVE_FEED",
+    },
+    "quant_microstructure_radar": {
+        "price_usdc": 0.02,
+        "avg_tokens_saved": 15000,
+        "est_inference_savings_usd": 0.075,
+        "net_roi_pct": 275,
+        "category": "Alpha & Microstructure",
+        "tier": "PAID_HIGH_ALPHA_LIVE_FEED",
     },
     "orderbook_slippage_simulator": {
         "price_usdc": 0.02,
@@ -462,48 +469,7 @@ TOOL_ECONOMICS = {
         "est_inference_savings_usd": 0.075,
         "net_roi_pct": 275,
         "category": "Execution Optimization",
-    },
-    "smart_money_whale_flow_radar": {
-        "price_usdc": 0.03,
-        "avg_tokens_saved": 20000,
-        "est_inference_savings_usd": 0.100,
-        "net_roi_pct": 233,
-        "category": "Whale Flow Telemetry",
-    },
-    "dev_api_cheatsheet_vault": {
-        "price_usdc": 0.01,
-        "avg_tokens_saved": 40000,
-        "est_inference_savings_usd": 0.200,
-        "net_roi_pct": 1900,
-        "category": "API Schema Reference",
-    },
-    "daily_tech_ai_trends_radar": {
-        "price_usdc": 0.01,
-        "avg_tokens_saved": 25000,
-        "est_inference_savings_usd": 0.125,
-        "net_roi_pct": 1150,
-        "category": "AI Technology Radar",
-    },
-    "ast_security_scanner": {
-        "price_usdc": 0.03,
-        "avg_tokens_saved": 4000,
-        "est_inference_savings_usd": 0.020,
-        "net_roi_pct": 67,
-        "category": "Security Linting",
-    },
-    "synthetic_schema_verifier": {
-        "price_usdc": 0.01,
-        "avg_tokens_saved": 1500,
-        "est_inference_savings_usd": 0.008,
-        "net_roi_pct": 80,
-        "category": "Schema Conformity",
-    },
-    "prompt_injection_firewall": {
-        "price_usdc": 0.01,
-        "avg_tokens_saved": 10000,
-        "est_inference_savings_usd": 0.050,
-        "net_roi_pct": 400,
-        "category": "Adversarial Prompt Defense",
+        "tier": "PAID_HIGH_ALPHA_LIVE_FEED",
     },
     "smart_contract_honeypot_radar": {
         "price_usdc": 0.03,
@@ -511,6 +477,63 @@ TOOL_ECONOMICS = {
         "est_inference_savings_usd": 0.125,
         "net_roi_pct": 316,
         "category": "Smart Contract & Token Security",
+        "tier": "PAID_HIGH_ALPHA_LIVE_FEED",
+    },
+    "token_context_compressor": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 14000,
+        "est_inference_savings_usd": 0.070,
+        "net_roi_pct": 600,
+        "category": "Context Optimization",
+        "tier": "FREE_FUNNEL_LEAD_MAGNET",
+    },
+    "ast_structural_slicer": {
+        "price_usdc": 0.02,
+        "avg_tokens_saved": 3000,
+        "est_inference_savings_usd": 0.015,
+        "net_roi_pct": 75,
+        "category": "Code Slicing",
+        "tier": "FREE_FUNNEL_LEAD_MAGNET",
+    },
+    "smart_money_whale_flow_radar": {
+        "price_usdc": 0.03,
+        "avg_tokens_saved": 20000,
+        "est_inference_savings_usd": 0.100,
+        "net_roi_pct": 233,
+        "category": "Whale Flow Telemetry",
+        "tier": "PAID_LIVE_INTELLIGENCE",
+    },
+    "dev_api_cheatsheet_vault": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 40000,
+        "est_inference_savings_usd": 0.200,
+        "net_roi_pct": 1900,
+        "category": "API Schema Reference",
+        "tier": "FREE_FUNNEL_LEAD_MAGNET",
+    },
+    "daily_tech_ai_trends_radar": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 25000,
+        "est_inference_savings_usd": 0.125,
+        "net_roi_pct": 1150,
+        "category": "AI Technology Radar",
+        "tier": "PAID_LIVE_INTELLIGENCE",
+    },
+    "synthetic_schema_verifier": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 1500,
+        "est_inference_savings_usd": 0.008,
+        "net_roi_pct": 80,
+        "category": "Schema Conformity",
+        "tier": "FREE_FUNNEL_LEAD_MAGNET",
+    },
+    "prompt_injection_firewall": {
+        "price_usdc": 0.01,
+        "avg_tokens_saved": 10000,
+        "est_inference_savings_usd": 0.050,
+        "net_roi_pct": 400,
+        "category": "Adversarial Prompt Defense",
+        "tier": "FREE_FUNNEL_LEAD_MAGNET",
     },
     "secret_leak_scanner": {
         "price_usdc": 0.01,
@@ -518,6 +541,7 @@ TOOL_ECONOMICS = {
         "est_inference_savings_usd": 0.075,
         "net_roi_pct": 650,
         "category": "Credential & Key Leak Prevention",
+        "tier": "FREE_FUNNEL_LEAD_MAGNET",
     },
     "deep_ast_vulnerability_auditor": {
         "price_usdc": 0.03,
@@ -525,6 +549,7 @@ TOOL_ECONOMICS = {
         "est_inference_savings_usd": 0.075,
         "net_roi_pct": 150,
         "category": "Static AST Code Security",
+        "tier": "FREE_FUNNEL_LEAD_MAGNET",
     },
     "api_attack_surface_scanner": {
         "price_usdc": 0.02,
@@ -532,6 +557,7 @@ TOOL_ECONOMICS = {
         "est_inference_savings_usd": 0.060,
         "net_roi_pct": 200,
         "category": "API Attack Surface & Defense Headers",
+        "tier": "PAID_LIVE_INTELLIGENCE",
     },
 }
 
@@ -640,15 +666,6 @@ MCP_TOOLS_SCHEMA = [
         },
     },
     {
-        "name": "ast_security_scanner",
-        "description": "Python AST code security linter (compatibility alias for deep_ast_vulnerability_auditor) ($0.03 USDC).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"source_code": {"type": "string"}},
-            "required": ["source_code"],
-        },
-    },
-    {
         "name": "synthetic_schema_verifier",
         "description": "Validates JSON payloads against expected type schemas with zero hallucinations ($0.01 USDC).",
         "inputSchema": {
@@ -721,8 +738,13 @@ MCP_TOOLS_SCHEMA = [
 ]
 
 
-def _extract_payment_credentials(request, body: Dict[str, Any]) -> Tuple[Optional[str], Optional[str]]:
-    """Extracts (api_key, payment_tx) from standard headers and request body."""
+def _extract_payment_credentials(
+    request, body: Dict[str, Any]
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """
+    Extracts (api_key, payment_tx, x402_eip3009_header) from standard headers and request body.
+    Supports Coinbase x402 v1 EIP-3009 (PAYMENT-SIGNATURE / X-PAYMENT) alongside X-Payment-Tx fallback.
+    """
     api_key = request.headers.get("X-API-Key")
     if not api_key:
         auth_header = request.headers.get("Authorization", "")
@@ -733,6 +755,15 @@ def _extract_payment_credentials(request, body: Dict[str, Any]) -> Tuple[Optiona
     if not api_key and isinstance(body.get("api_key"), str):
         api_key = body["api_key"].strip() or None
 
+    # Check Coinbase x402 v1 EIP-3009 headers first
+    x402_eip3009_header: Optional[str] = None
+    for hdr_name in ("PAYMENT-SIGNATURE", "X-PAYMENT", "X-Payment"):
+        raw_hdr = request.headers.get(hdr_name)
+        if isinstance(raw_hdr, str) and raw_hdr.strip():
+            if payment_gw.parse_x402_payment_header(raw_hdr.strip()) is not None:
+                x402_eip3009_header = raw_hdr.strip()
+                break
+
     raw_payment = (
         request.headers.get("X-Payment-Tx")
         or request.headers.get("X-Payment")
@@ -741,7 +772,7 @@ def _extract_payment_credentials(request, body: Dict[str, Any]) -> Tuple[Optiona
         or body.get("tx_hash")
     )
     payment_tx: Optional[str] = None
-    if isinstance(raw_payment, str) and raw_payment.strip():
+    if not x402_eip3009_header and isinstance(raw_payment, str) and raw_payment.strip():
         candidate = raw_payment.strip()
         if candidate.startswith("{"):
             try:
@@ -757,7 +788,7 @@ def _extract_payment_credentials(request, body: Dict[str, Any]) -> Tuple[Optiona
                 pass
         payment_tx = candidate.strip()
 
-    return (api_key.strip() if api_key else None), payment_tx
+    return (api_key.strip() if api_key else None), payment_tx, x402_eip3009_header
 
 
 _CLIENT_VALIDATION_ERRORS = frozenset({
@@ -862,9 +893,9 @@ def _is_test_simulation_allowed() -> bool:
 
 def _get_free_trial_daily_limit() -> int:
     try:
-        return max(1, int(os.getenv("SOUQ_FREE_TRIAL_DAILY_LIMIT", "5")))
+        return max(1, int(os.getenv("SOUQ_FREE_TRIAL_DAILY_LIMIT", "1")))
     except (TypeError, ValueError):
-        return 5
+        return 1
 
 
 def _check_free_trial_eligible(ip_hash: str, now_ts: Optional[float] = None) -> bool:
@@ -998,12 +1029,6 @@ def _dispatch_tool(tool_name: str, body: Dict[str, Any]) -> Dict[str, Any]:
 
     if tool_name == "daily_tech_ai_trends_radar":
         return trends_radar.refresh_cache_and_get(force_refresh=bool(body.get("force_refresh", False)))
-
-    if tool_name == "ast_security_scanner":
-        source_code, err = _require_str(body, "source_code")
-        if err:
-            return err
-        return security_scanner.scan_python_code(source_code)
 
     if tool_name == "synthetic_schema_verifier":
         if "data" not in body or "schema" not in body:
@@ -1154,7 +1179,9 @@ async def _authorize_and_execute_tool(
     user_agent = request.headers.get("User-Agent", "anonymous-agent")
     client_ip = _extract_client_ip(request)
     client_ip_hash = telemetry_engine.hash_ip(client_ip)
-    api_key, payment_tx = _extract_payment_credentials(request, body)
+    api_key, payment_tx, x402_eip3009_header = _extract_payment_credentials(request, body)
+    req_work_order_id = request.headers.get("X-Souq-Work-Order-Id") or body.get("work_order_id")
+    req_quote_hash = request.headers.get("X-Souq-Quote-Hash") or body.get("quote_hash")
 
     billing_header = "PAID_SETTLEMENT"
     extra_headers: Dict[str, str] = {}
@@ -1274,7 +1301,97 @@ async def _authorize_and_execute_tool(
             )
         )
 
-    # Priority 2: Direct x402 Base USDC transaction hash (atomic lock across precheck -> dispatch -> commit)
+    # Priority 2A: Coinbase x402 v1 EIP-3009 transferWithAuthorization (1-RTT gasless settlement)
+    elif x402_eip3009_header:
+        def _execute_eip3009_locked() -> Tuple[str, int, Dict[str, Any], Dict[str, Any]]:
+            ok_pre, precheck = payment_gw.verify_x402_eip3009_payment(
+                payment_header=x402_eip3009_header,
+                expected_price_usdc=price,
+                tool_name=tool_name,
+                client_agent_id=user_agent[:64],
+                client_user_agent=user_agent,
+                work_order_id=req_work_order_id,
+                quote_hash=req_quote_hash,
+            )
+            if not ok_pre:
+                err_label = str(precheck.get("error", "EIP3009_VERIFICATION_FAILED"))
+                negotiation_tracker.log_negotiation(
+                    client_agent_id=user_agent[:64],
+                    client_user_agent=user_agent,
+                    tool_requested=tool_name,
+                    initial_quote_usd=price,
+                    settled_price_usd=None,
+                    payment_protocol="x402_eip3009",
+                    outcome="INVALID_PAYMENT",
+                    latency_ms=max(1, int((time.time() - call_start) * 1000)),
+                    rejection_reason=err_label,
+                    metadata={"client_ip_hash": client_ip_hash},
+                )
+                return "precheck_failed", 400, {"error": "Payment Verification Failed", "details": precheck}, {}
+
+            norm_tx = str(precheck["tx_hash"]).strip().lower()
+            eip3009_nullifier = str(precheck.get("eip3009_nullifier") or "").strip().lower()
+            tx_lock = _get_tx_lock(eip3009_nullifier or norm_tx)
+            with tx_lock.lock:
+                try:
+                    tool_res = _dispatch_tool(tool_name, body)
+                except Exception as exc:
+                    return (
+                        "tool_failed",
+                        503,
+                        {
+                            "status": "upstream_unavailable",
+                            "error": "upstream_unavailable",
+                            "message": f"Tool execution failed before settlement; authorization not consumed: {exc}",
+                            "tx_consumed": False,
+                            "refunded": False,
+                        },
+                        {},
+                    )
+
+                if _is_dispatch_failure(tool_res):
+                    fail_code = _failure_http_status(tool_res)
+                    fail_body = {
+                        **(tool_res if isinstance(tool_res, dict) else {"status": "error", "error": "tool_error"}),
+                        "tx_consumed": False,
+                        "refunded": False,
+                    }
+                    return "tool_failed", fail_code, fail_body, {}
+
+                settled_ok, final_settlement = payment_gw.commit_payment_settlement(
+                    tx_hash=norm_tx,
+                    expected_price_usdc=price,
+                    tool_name=tool_name,
+                    payload_data=body,
+                    payer_address=precheck.get("payer_address", ""),
+                    gas_fee_eth=0.0,
+                    is_simulated=False,
+                    client_agent_id=user_agent[:64],
+                    client_user_agent=user_agent,
+                    start_t=call_start,
+                    work_order_id=precheck.get("work_order_id"),
+                    quote_hash=precheck.get("quote_hash"),
+                    payment_protocol="x402_eip3009",
+                    eip3009_nullifier=eip3009_nullifier or None,
+                )
+                if not settled_ok:
+                    return "commit_failed", 400, {"error": "Payment Verification Failed", "details": final_settlement}, {}
+
+                return "ok", 200, tool_res, final_settlement
+
+        outcome_kind, http_code, res, settlement = await anyio.to_thread.run_sync(_execute_eip3009_locked)
+        if outcome_kind == "precheck_failed" or outcome_kind == "commit_failed":
+            return http_code, res, {"X-Souq-Tool": tool_name, "X-Souq-Billing": "INVALID_PAYMENT"}
+        if outcome_kind == "tool_failed":
+            return http_code, res, {"X-Souq-Tool": tool_name, "X-Souq-Billing": "TX_UNCONSUMED_ERROR"}
+        billing_header = "PAID_X402_EIP3009"
+        if is_external_tool:
+            split_info = await anyio.to_thread.run_sync(
+                partial(marketplace_registry.record_split_settlement, tool_name, price, "x402_eip3009")
+            )
+            settlement["marketplace_split"] = split_info
+
+    # Priority 2B: Direct x402 Base USDC transaction hash (atomic lock across precheck -> dispatch -> commit)
     elif payment_tx:
         allow_sim = _is_test_simulation_allowed()
         simulate = allow_sim and (payment_tx.startswith("0x_simulated_") or payment_tx.startswith("0x_test_"))
@@ -1294,6 +1411,8 @@ async def _authorize_and_execute_tool(
                     simulate_test=simulate,
                     payer_signature=payer_signature,
                     payer_challenge=payer_challenge,
+                    work_order_id=req_work_order_id,
+                    quote_hash=req_quote_hash,
                 )
                 if not ok_pre:
                     err_label = str(precheck.get("error", "VERIFICATION_FAILED"))
@@ -1348,6 +1467,8 @@ async def _authorize_and_execute_tool(
                     client_agent_id=user_agent[:64],
                     client_user_agent=user_agent,
                     start_t=call_start,
+                    work_order_id=req_work_order_id,
+                    quote_hash=req_quote_hash,
                 )
                 if not settled_ok:
                     return "commit_failed", 400, {"error": "Payment Verification Failed", "details": final_settlement}, {}
@@ -1451,6 +1572,15 @@ async def _authorize_and_execute_tool(
                     client_user_agent=user_agent,
                 )
             )
+            x402_header_b64 = base64.b64encode(
+                json.dumps(
+                    {
+                        "x402Version": challenge.get("x402Version", 1),
+                        "accepts": challenge.get("accepts", []),
+                    },
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).decode("ascii")
             challenge_headers = {
                 "X-Souq-Tool": tool_name,
                 "X-Souq-Price-USDC": str(price),
@@ -1461,10 +1591,20 @@ async def _authorize_and_execute_tool(
                 "X-Souq-Network": "Base",
                 "X-Souq-Token": "USDC",
                 "X-Souq-Billing": "HTTP_402_CHALLENGE",
+                "X-Souq-Work-Order-Id": str(challenge.get("work_order_id", "")),
+                "X-Souq-Quote-Hash": str(challenge.get("quote_hash", "")),
+                "PAYMENT-REQUIRED": x402_header_b64,
             }
             return 402, challenge, challenge_headers
 
     res["settlement_receipt"] = settlement
+    if tool_name in LEAD_MAGNET_UTILITIES:
+        res["funnel_upsell"] = {
+            "tier": "FREE_FUNNEL_LEAD_MAGNET",
+            "message": "Upgrade to SOUQ's 5 Paid High-Alpha Live Intelligence Feeds ($0.02-$0.05/call via x402 EIP-3009 or $5 prepaid X-API-Key).",
+            "paid_high_alpha_live_feeds": list(HIGH_ALPHA_LIVE_FEEDS),
+            "prepaid_key_endpoint": "/api/credits/topup",
+        }
 
     headers = {
         "X-Souq-Tool": tool_name,
@@ -1637,11 +1777,12 @@ async def api_catalog(request):
         tools_list.append({
             "name": name,
             "category": data["category"],
+            "tier": data.get("tier", "PAID_LIVE_INTELLIGENCE"),
             "price_usdc": data["price_usdc"],
             "avg_tokens_saved": data["avg_tokens_saved"],
             "est_inference_savings_usd": data["est_inference_savings_usd"],
             "net_roi_pct": data["net_roi_pct"],
-            "settlement_rail": "Base L2 USDC (x402) or Prepaid X-API-Key",
+            "settlement_rail": "Base L2 USDC (x402 EIP-3009 / X-Payment-Tx) or Prepaid X-API-Key",
         })
 
     ext_listings = await anyio.to_thread.run_sync(marketplace_registry.list_active_listings)
@@ -1667,6 +1808,9 @@ async def api_catalog(request):
         "mcp_http_endpoint": "/mcp",
         "topup_endpoint": "/api/credits/topup",
         "marketplace_list_endpoint": "/api/marketplace/listings",
+        "free_trial_daily_limit": _get_free_trial_daily_limit(),
+        "high_alpha_live_feeds": list(HIGH_ALPHA_LIVE_FEEDS),
+        "lead_magnet_utilities": sorted(LEAD_MAGNET_UTILITIES),
         "tools": tools_list,
         "marketplace_listings": ext_listings,
         "digital_products": polar_adapter.list_catalog(),
@@ -1851,7 +1995,7 @@ async def api_credits_topup(request):
 
 async def api_credits_balance(request):
     """Returns credit balance & usage metadata for an X-API-Key."""
-    api_key, _ = _extract_payment_credentials(request, {})
+    api_key, _, _ = _extract_payment_credentials(request, {})
     if not api_key:
         return JSONResponse({"error": "Missing X-API-Key or Authorization Bearer header"}, status_code=401)
     status = await anyio.to_thread.run_sync(api_key_ledger.get_key_status, api_key)
@@ -2088,22 +2232,25 @@ async def mcp_http_endpoint(request):
             arguments = {}
 
         if tool_name == "souq_account_status":
-            api_key, _ = _extract_payment_credentials(request, arguments)
+            api_key, _, _ = _extract_payment_credentials(request, arguments)
             key_status = (
                 await anyio.to_thread.run_sync(api_key_ledger.get_key_status, api_key)
                 if api_key
                 else None
             )
+            trial_limit = _get_free_trial_daily_limit()
             info = {
                 "service": "SOUQ Autonomous Agent Commerce",
-                "version": "0.3.0",
+                "version": "0.3.1",
                 "authenticated_key": key_status,
                 "payment_rails": {
                     "base_usdc_wallet": payment_gw.recipient_wallet,
                     "base_usdc_contract": payment_gw.usdc_contract,
+                    "x402_eip3009_header": "PAYMENT-SIGNATURE / X-PAYMENT",
                     "topup_endpoint": "/api/credits/topup",
-                    "free_trial": "1 call / 24h per client IP without key",
+                    "free_trial": f"{trial_limit} call / 24h per client IP without key",
                 },
+                "high_alpha_live_feeds": list(HIGH_ALPHA_LIVE_FEEDS),
                 "available_tools": {k: v["price_usdc"] for k, v in TOOL_ECONOMICS.items()},
             }
             return JSONResponse(
@@ -2178,12 +2325,50 @@ def _fetch_sales_kpis_sync() -> Tuple[int, float, int, float]:
 async def api_stats(request):
     """Real-time aggregate KPIs publicly; granular recent_activity & internals gated by SOUQ_ADMIN_TOKEN."""
     is_admin = _is_admin_request(request)
-    traffic = await anyio.to_thread.run_sync(telemetry_engine.get_traffic_summary)
-    market = await anyio.to_thread.run_sync(negotiation_tracker.get_market_intelligence_summary)
-    confirmed_orders, confirmed_volume_usd, prepaid_keys_count, prepaid_volume_usd = await anyio.to_thread.run_sync(
-        _fetch_sales_kpis_sync
-    )
-    marketplace_kpis = await anyio.to_thread.run_sync(marketplace_registry.get_marketplace_kpis)
+    db_degraded = False
+
+    try:
+        traffic = await anyio.to_thread.run_sync(telemetry_engine.get_traffic_summary)
+    except Exception:
+        db_degraded = True
+        traffic = {
+            "total_requests": 0,
+            "client_categories": {},
+            "top_tools": [],
+            "recent_activity": [],
+        }
+
+    try:
+        market = await anyio.to_thread.run_sync(negotiation_tracker.get_market_intelligence_summary)
+    except Exception:
+        db_degraded = True
+        market = {
+            "total_402_challenges": 0,
+            "settled_conversions": 0,
+            "conversion_rate_pct": 0.0,
+            "rejection_analysis": [],
+        }
+
+    try:
+        confirmed_orders, confirmed_volume_usd, prepaid_keys_count, prepaid_volume_usd = await anyio.to_thread.run_sync(
+            _fetch_sales_kpis_sync
+        )
+    except Exception:
+        db_degraded = True
+        confirmed_orders, confirmed_volume_usd, prepaid_keys_count, prepaid_volume_usd = 0, 0.0, 0, 0.0
+
+    try:
+        marketplace_kpis = await anyio.to_thread.run_sync(marketplace_registry.get_marketplace_kpis)
+    except Exception:
+        db_degraded = True
+        marketplace_kpis = {
+            "active_sellers": 0,
+            "active_listings": 0,
+            "total_marketplace_calls": 0,
+            "gross_volume_usd": 0.0,
+            "souq_commission_profit_usd": 0.0,
+            "seller_earnings_usd": 0.0,
+        }
 
     if is_admin:
         traffic_out = traffic
@@ -2192,15 +2377,16 @@ async def api_stats(request):
         traffic_out = {k: v for k, v in traffic.items() if k != "recent_activity"}
         market_out = {k: v for k, v in market.items() if k != "rejection_analysis"}
 
-    return JSONResponse({
+    payload: Dict[str, Any] = {
         "service": "SOUQ Autonomous Agent Commerce Swarm",
         "version": "0.3.1",
-        "status": "online",
+        "status": "degraded" if db_degraded else "online",
+        "db_degraded": db_degraded,
         "settlement_rail": "Base L2 USDC (x402) + Prepaid X-API-Key + Polar MoR + Partner 80/20 Split",
         "recipient_wallet": payment_gw.recipient_wallet,
         "total_settled_orders": confirmed_orders,
         "settled_volume_usdc": round(confirmed_volume_usd, 6),
-        "active_tools": len(TOOL_ECONOMICS) + marketplace_kpis["active_listings"],
+        "active_tools": len(TOOL_ECONOMICS) + int(marketplace_kpis.get("active_listings", 0)),
         "uptime": round(max(0.0, time.time() - _SERVER_START_TS), 1),
         "top_tools": traffic_out.get("top_tools", []),
         "marketplace_kpis": marketplace_kpis,
@@ -2213,7 +2399,8 @@ async def api_stats(request):
         },
         "traffic_telemetry": traffic_out,
         "negotiations_telemetry": market_out,
-    })
+    }
+    return JSONResponse(payload)
 
 
 def _is_swarm_admin_authorized(request) -> bool:

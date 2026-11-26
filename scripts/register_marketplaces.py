@@ -1,71 +1,125 @@
 #!/usr/bin/env python3
 """
-SOUQ Marketplace & Directory Ping Automation
-Verifies manifest compliance and registers/pings major agent search engines and directories:
-1. IndexNow (Bing / Seznam / Yandex agent search)
-2. MCP.so & Glama directory submission payloads
-3. A2A / AgentCard discovery
-4. Smithery configuration validation
+SOUQ // Automated Marketplace & MCP Registry Reachability Verifier
+Checks live listing reachability across Official MCP Registry, PyPI, npm,
+Smithery, Glama, and x402 Bazaar.
 """
 
-import os
+import argparse
 import json
-import urllib.request
-import urllib.error
+import sys
+import time
+from typing import Any, Dict, List
+import requests
 
-EDGE_HOST = "https://written-emera-arapython-bf7436a4.apps.mistral.run"
+MARKETPLACE_TARGETS: List[Dict[str, str]] = [
+    {
+        "name": "Official MCP Registry",
+        "key": "official_mcp_registry",
+        "url": "https://registry.modelcontextprotocol.io/v0/servers?search=souq",
+    },
+    {
+        "name": "PyPI (souq-mcp)",
+        "key": "pypi",
+        "url": "https://pypi.org/pypi/souq-mcp/json",
+    },
+    {
+        "name": "npm (souq-mcp)",
+        "key": "npm",
+        "url": "https://registry.npmjs.org/souq-mcp",
+    },
+    {
+        "name": "Smithery MCP Directory",
+        "key": "smithery",
+        "url": "https://smithery.ai/server/souq-mcp",
+    },
+    {
+        "name": "Glama MCP Directory",
+        "key": "glama",
+        "url": "https://glama.ai/mcp/servers?query=souq",
+    },
+    {
+        "name": "x402 Bazaar Directory",
+        "key": "x402_bazaar",
+        "url": "https://www.x402.org/ecosystem",
+    },
+]
 
-def check_endpoint(path: str) -> bool:
-    url = f"{EDGE_HOST}{path}"
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "SouqDirectoryValidator/1.0"})
-        with urllib.request.urlopen(req, timeout=10.0) as resp:
-            print(f"  [OK] {path} -> HTTP {resp.status}")
-            return True
-    except Exception as e:
-        print(f"  [FAIL] {path} -> {e}")
-        return False
 
-def main():
-    print("=== SOUQ Agent Directory & Marketplace Verification ===")
-    
-    # 1. Verify Manifest Endpoints on Live Edge
-    manifests = [
-        "/.well-known/agent-card.json",
-        "/.well-known/mcp.json",
-        "/api/cyber/threat-intel",
-        "/llms.txt",
-        "/llms-full.txt",
-        "/openapi.json",
-        "/sitemap.xml",
-        "/robots.txt"
-    ]
-    
-    all_ok = True
-    for m in manifests:
-        if not check_endpoint(m):
-            all_ok = False
+def verify_marketplaces(
+    timeout_s: float = 8.0,
+    offline: bool = False,
+    http_get=None,
+) -> Dict[str, Any]:
+    """Probes all configured MCP / package / x402 directories and returns a structured status report."""
+    getter = http_get or requests.get
+    results: List[Dict[str, Any]] = []
+    headers = {"User-Agent": "SOUQ-Marketplace-Verifier/1.0"}
 
-    print("\n=== Marketplace Registration & Agent Discovery Status ===")
-    print("1. Smithery.ai:")
-    print("   - Manifest: 'smithery.yaml' configured with full cyber defense suite.")
-    print("   - Command:  npx -y @smithery/cli run souq-mcp")
-    print("   - Publish:  npx -y @smithery/cli publish")
-    print("2. Glama.ai (mcp.directory):")
-    print(f"   - Discovery URL: {EDGE_HOST}/.well-known/mcp.json")
-    print("   - Submission:    https://glama.ai/mcp/servers")
-    print("3. PulseMCP & MCP Index:")
-    print(f"   - Endpoint:      {EDGE_HOST}/api/tools/call")
-    print("   - Directory:     https://www.pulsemcp.com/")
-    print("4. Autonomous A2A Protocols (AgentCard):")
-    print(f"   - Agent Card:    {EDGE_HOST}/.well-known/agent-card.json")
-    print("5. Search Engine Discovery (IndexNow):")
-    print("   - Pings:         Bing, Seznam, Yandex, Naver via agents/distribution/munadi_herald.py")
-    
-    if all_ok:
-        print("\nAll agent marketplace discovery endpoints are online and compliant.")
+    for target in MARKETPLACE_TARGETS:
+        if offline:
+            results.append({
+                "key": target["key"],
+                "name": target["name"],
+                "url": target["url"],
+                "reachable": None,
+                "status_code": None,
+                "status": "SKIPPED_OFFLINE",
+            })
+            continue
+
+        t0 = time.time()
+        try:
+            resp = getter(target["url"], headers=headers, timeout=timeout_s, allow_redirects=True)
+            code = int(getattr(resp, "status_code", 0))
+            reachable = 200 <= code < 400
+            results.append({
+                "key": target["key"],
+                "name": target["name"],
+                "url": target["url"],
+                "reachable": reachable,
+                "status_code": code,
+                "latency_ms": int((time.time() - t0) * 1000),
+                "status": "LIVE" if reachable else f"HTTP_{code}",
+            })
+        except Exception as exc:
+            results.append({
+                "key": target["key"],
+                "name": target["name"],
+                "url": target["url"],
+                "reachable": False,
+                "status_code": None,
+                "latency_ms": int((time.time() - t0) * 1000),
+                "status": "UNREACHABLE",
+                "error": str(exc)[:200],
+            })
+
+    live_count = sum(1 for r in results if r.get("reachable") is True)
+    return {
+        "checked_at_epoch": int(time.time()),
+        "total_directories": len(results),
+        "live_count": live_count,
+        "offline_mode": offline,
+        "directories": results,
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Verify SOUQ listings across MCP, PyPI, npm, and x402 directories.")
+    parser.add_argument("--timeout", type=float, default=8.0, help="HTTP timeout per directory in seconds")
+    parser.add_argument("--offline", action="store_true", help="Skip live HTTP calls and emit target manifest")
+    parser.add_argument("--json", action="store_true", dest="as_json", help="Print JSON output")
+    args = parser.parse_args()
+
+    report = verify_marketplaces(timeout_s=args.timeout, offline=args.offline)
+    if args.as_json:
+        print(json.dumps(report, indent=2))
     else:
-        print("\nSome endpoints returned errors. Check Koyeb deployment.")
+        print(f"SOUQ Marketplace Reachability ({report['live_count']}/{report['total_directories']} LIVE)")
+        for item in report["directories"]:
+            print(f" - [{item['status']}] {item['name']}: {item['url']}")
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

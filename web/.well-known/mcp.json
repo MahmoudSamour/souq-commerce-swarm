@@ -6,7 +6,10 @@
   "vendor": "SOUQ Autonomous Swarm",
   "transport": {
     "streamable_http": "https://written-emera-arapython-bf7436a4.apps.mistral.run/mcp",
-    "streamable_http_methods": ["POST", "DELETE"],
+    "streamable_http_methods": [
+      "POST",
+      "DELETE"
+    ],
     "streamable_http_get_behavior": "405 Method Not Allowed (stateless JSON-RPC 2.0 via POST /mcp; DELETE returns 204)",
     "stdio_npx": "npx -y souq-mcp",
     "stdio_uvx": "uvx souq-mcp",
@@ -40,7 +43,7 @@
       "balance_endpoint": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/credits/balance",
       "ui_url": "https://written-emera-arapython-bf7436a4.apps.mistral.run/#topup",
       "header": "X-API-Key",
-      "min_topup_usd": 0.50
+      "min_topup_usd": 0.5
     },
     "polar_mor": {
       "products_endpoint": "https://written-emera-arapython-bf7436a4.apps.mistral.run/api/products",
@@ -72,16 +75,36 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "raw_content": { "type": "string", "description": "Raw HTML, JSON, log, or markdown text to compress" },
-          "max_compression": { "type": "boolean", "default": true },
+          "raw_content": {
+            "type": "string",
+            "description": "Raw HTML, JSON, log, or markdown text to compress"
+          },
+          "max_compression": {
+            "type": "boolean",
+            "default": true
+          },
           "mode": {
             "type": "string",
-            "enum": ["auto", "html", "json", "code", "log", "logs", "markdown", "prose"],
+            "enum": [
+              "auto",
+              "html",
+              "json",
+              "code",
+              "log",
+              "logs",
+              "markdown",
+              "prose"
+            ],
             "default": "auto"
           },
-          "target_ratio": { "type": "number", "description": "Optional target compression ratio in (0.05, 0.95)" }
+          "target_ratio": {
+            "type": "number",
+            "description": "Optional target compression ratio in (0.05, 0.95)"
+          }
         },
-        "required": ["raw_content"]
+        "required": [
+          "raw_content"
+        ]
       }
     },
     {
@@ -96,10 +119,17 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "source_code": { "type": "string" },
-          "target_symbol": { "type": "string" }
+          "source_code": {
+            "type": "string"
+          },
+          "target_symbol": {
+            "type": "string"
+          }
         },
-        "required": ["source_code", "target_symbol"]
+        "required": [
+          "source_code",
+          "target_symbol"
+        ]
       }
     },
     {
@@ -114,7 +144,10 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "symbol": { "type": "string", "default": "BTC/USDT" }
+          "symbol": {
+            "type": "string",
+            "default": "BTC/USDT"
+          }
         }
       }
     },
@@ -130,7 +163,10 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "symbol": { "type": "string", "default": "BTC/USDT" }
+          "symbol": {
+            "type": "string",
+            "default": "BTC/USDT"
+          }
         }
       }
     },
@@ -146,9 +182,22 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "symbol": { "type": "string", "default": "BTC/USDT" },
-          "side": { "type": "string", "enum": ["BUY", "SELL"], "default": "BUY" },
-          "trade_size_usd": { "type": "number", "default": 10000.0 }
+          "symbol": {
+            "type": "string",
+            "default": "BTC/USDT"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY",
+              "SELL"
+            ],
+            "default": "BUY"
+          },
+          "trade_size_usd": {
+            "type": "number",
+            "default": 10000.0
+          }
         }
       }
     },
@@ -164,8 +213,14 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "symbol": { "type": "string", "default": "BTC/USDT" },
-          "block_threshold_usd": { "type": "number", "default": 50000.0 }
+          "symbol": {
+            "type": "string",
+            "default": "BTC/USDT"
+          },
+          "block_threshold_usd": {
+            "type": "number",
+            "default": 50000.0
+          }
         }
       }
     },
@@ -181,8 +236,14 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "asset": { "type": "string", "default": "BTC" },
-          "limit": { "type": "integer", "default": 5 }
+          "asset": {
+            "type": "string",
+            "default": "BTC"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 5
+          }
         }
       }
     },
@@ -200,7 +261,15 @@
         "properties": {
           "ecosystem": {
             "type": "string",
-            "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "mcp", "duckdb"],
+            "enum": [
+              "openai",
+              "anthropic",
+              "stripe",
+              "base_evm",
+              "fastmcp",
+              "mcp",
+              "duckdb"
+            ],
             "default": "openai"
           }
         }
@@ -218,25 +287,11 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "force_refresh": { "type": "boolean", "default": false }
+          "force_refresh": {
+            "type": "boolean",
+            "default": false
+          }
         }
-      }
-    },
-    {
-      "name": "ast_security_scanner",
-      "category": "Security Linting",
-      "description": "Python AST code security linter (compatibility alias for deep_ast_vulnerability_auditor) ($0.03 USDC).",
-      "price_usdc": 0.03,
-      "avg_tokens_saved": 4000,
-      "est_inference_savings_usd": 0.02,
-      "net_roi_pct": 67,
-      "estimated_tokens_saved": "4,000 per invocation",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "source_code": { "type": "string" }
-        },
-        "required": ["source_code"]
       }
     },
     {
@@ -251,10 +306,17 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "data": { "type": "object" },
-          "schema": { "type": "object" }
+          "data": {
+            "type": "object"
+          },
+          "schema": {
+            "type": "object"
+          }
         },
-        "required": ["data", "schema"]
+        "required": [
+          "data",
+          "schema"
+        ]
       }
     },
     {
@@ -269,10 +331,17 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "text": { "type": "string" },
-          "strict_mode": { "type": "boolean", "default": false }
+          "text": {
+            "type": "string"
+          },
+          "strict_mode": {
+            "type": "boolean",
+            "default": false
+          }
         },
-        "required": ["text"]
+        "required": [
+          "text"
+        ]
       }
     },
     {
@@ -287,12 +356,18 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "source_code": { "type": "string", "default": "" },
+          "source_code": {
+            "type": "string",
+            "default": ""
+          },
           "contract_address": {
             "type": "string",
             "description": "Optional Base 0x... contract address for live bytecode & Blockscout source inspection"
           },
-          "token_symbol": { "type": "string", "default": "TKN" }
+          "token_symbol": {
+            "type": "string",
+            "default": "TKN"
+          }
         }
       }
     },
@@ -308,10 +383,17 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "content": { "type": "string" },
-          "entropy_threshold": { "type": "number", "default": 4.2 }
+          "content": {
+            "type": "string"
+          },
+          "entropy_threshold": {
+            "type": "number",
+            "default": 4.2
+          }
         },
-        "required": ["content"]
+        "required": [
+          "content"
+        ]
       }
     },
     {
@@ -326,9 +408,13 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "source_code": { "type": "string" }
+          "source_code": {
+            "type": "string"
+          }
         },
-        "required": ["source_code"]
+        "required": [
+          "source_code"
+        ]
       }
     },
     {
@@ -343,10 +429,19 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "target_url": { "type": "string" },
-          "headers_to_check": { "type": "object", "additionalProperties": { "type": "string" } }
+          "target_url": {
+            "type": "string"
+          },
+          "headers_to_check": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
         },
-        "required": ["target_url"]
+        "required": [
+          "target_url"
+        ]
       }
     }
   ]

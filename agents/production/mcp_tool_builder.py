@@ -12,12 +12,12 @@ import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from dotenv import load_dotenv
 import requests
 
 from agents.production.cyber_defense_vault import DeepASTVulnerabilityAuditor
+from agents.treasury.db_backend import load_souq_env
 
-load_dotenv("config/.env")
+load_souq_env()
 
 _SYMBOL_VALID_RE = re.compile(r"^[A-Z0-9/_-]{2,20}$")
 
@@ -55,19 +55,17 @@ class _PublicMarketFeed:
     """
     Lightweight pooled REST market-data & Polymarket Gamma client with short TTL caching
     and geo-resilient multi-venue failover:
-    Binance Data Vision -> Coinbase Exchange -> Kraken -> Hyperliquid -> Deribit
-    (with Binance.com / OKX / CoinGecko as secondary backups).
+    Coinbase Exchange -> Kraken -> Hyperliquid -> Deribit -> OKX / CoinGecko
+    (with geo-safe unauthenticated data-api.binance.vision Spot-only archive as last resort).
     """
 
-    BINANCE_VISION_BASE = "https://data-api.binance.vision"
-    BINANCE_COM_BASE = "https://api.binance.com"
-    FUTURES_BASE = "https://fapi.binance.com"
     COINBASE_BASE = "https://api.exchange.coinbase.com"
     KRAKEN_BASE = "https://api.kraken.com"
     HYPERLIQUID_INFO = "https://api.hyperliquid.xyz/info"
     DERIBIT_BASE = "https://www.deribit.com/api/v2/public"
     OKX_BASE = "https://www.okx.com"
     COINGECKO_BASE = "https://api.coingecko.com/api/v3"
+    BINANCE_VISION_BASE = "https://data-api.binance.vision"
     POLYMARKET_GAMMA = "https://gamma-api.polymarket.com/events"
 
     KNOWN_QUOTES = ("FDUSD", "USDT", "USDC", "BUSD", "TUSD", "USD", "EUR", "BTC", "ETH")
@@ -193,27 +191,11 @@ class _PublicMarketFeed:
         base, quote = self.split_symbol(symbol)
         pair = f"{base}{quote}"
         allowed_limits = [5, 10, 20, 50, 100, 500]
-        binance_limit = min((v for v in allowed_limits if v >= limit), default=100)
+        vision_limit = min((v for v in allowed_limits if v >= limit), default=100)
         providers_tried: List[str] = []
         last_err: Optional[Exception] = None
 
-        # 1. Binance Data Vision (geo-unblocked)
-        providers_tried.append("binance_vision")
-        try:
-            bv_pair = pair if quote != "USD" else f"{base}USDT"
-            data = self._get_json(
-                f"{self.BINANCE_VISION_BASE}/api/v3/depth",
-                params={"symbol": bv_pair, "limit": binance_limit},
-                ttl_s=3.0,
-            )
-            bids = [[float(p), float(q)] for p, q in data.get("bids", [])[:limit]]
-            asks = [[float(p), float(q)] for p, q in data.get("asks", [])[:limit]]
-            if bids and asks:
-                return bids, asks, "binance_vision"
-        except Exception as exc:
-            last_err = exc
-
-        # 2. Coinbase Exchange L2
+        # 1. Coinbase Exchange L2
         providers_tried.append("coinbase_exchange")
         try:
             cb = self._get_json(
@@ -228,7 +210,7 @@ class _PublicMarketFeed:
         except Exception as exc:
             last_err = exc
 
-        # 3. Kraken Depth
+        # 2. Kraken Depth
         providers_tried.append("kraken")
         try:
             k_pair = self._kraken_pair(base, "USD" if quote in ("USD", "USDT") else quote)
@@ -246,7 +228,7 @@ class _PublicMarketFeed:
         except Exception as exc:
             last_err = exc
 
-        # 4. Hyperliquid L2 Book
+        # 3. Hyperliquid L2 Book
         providers_tried.append("hyperliquid")
         try:
             hl = self._post_json(
@@ -263,18 +245,19 @@ class _PublicMarketFeed:
         except Exception as exc:
             last_err = exc
 
-        # 5. Secondary backup: api.binance.com
-        providers_tried.append("binance_com")
+        # 4. Geo-safe unauthenticated Spot-only public archive (data-api.binance.vision)
+        providers_tried.append("binance_vision")
         try:
+            bv_pair = pair if quote != "USD" else f"{base}USDT"
             data = self._get_json(
-                f"{self.BINANCE_COM_BASE}/api/v3/depth",
-                params={"symbol": pair, "limit": binance_limit},
+                f"{self.BINANCE_VISION_BASE}/api/v3/depth",
+                params={"symbol": bv_pair, "limit": vision_limit},
                 ttl_s=3.0,
             )
             bids = [[float(p), float(q)] for p, q in data.get("bids", [])[:limit]]
             asks = [[float(p), float(q)] for p, q in data.get("asks", [])[:limit]]
             if bids and asks:
-                return bids, asks, "binance_com"
+                return bids, asks, "binance_vision"
         except Exception as exc:
             last_err = exc
 
@@ -290,22 +273,7 @@ class _PublicMarketFeed:
         providers_tried: List[str] = []
         last_err: Optional[Exception] = None
 
-        # 1. Binance Data Vision (when quote != USD; or secondary if USD)
-        if quote != "USD":
-            providers_tried.append("binance_vision")
-            try:
-                data = self._get_json(
-                    f"{self.BINANCE_VISION_BASE}/api/v3/ticker/price",
-                    params={"symbol": pair},
-                    ttl_s=4.0,
-                )
-                price = float(data["price"])
-                if price > 0:
-                    return price, "binance_vision", quote, int(time.time() * 1000), providers_tried
-            except Exception as exc:
-                last_err = exc
-
-        # 2. Coinbase Exchange (USD native)
+        # 1. Coinbase Exchange (USD native)
         providers_tried.append("coinbase_exchange")
         try:
             cb = self._get_json(f"{self.COINBASE_BASE}/products/{base}-USD/ticker", ttl_s=4.0)
@@ -316,7 +284,7 @@ class _PublicMarketFeed:
         except Exception as exc:
             last_err = exc
 
-        # 3. Kraken
+        # 2. Kraken
         providers_tried.append("kraken")
         for k_quote in ([quote, "USD"] if quote != "USD" else ["USD"]):
             try:
@@ -334,7 +302,7 @@ class _PublicMarketFeed:
             except Exception as exc:
                 last_err = exc
 
-        # 4. Deribit Index (for BTC/ETH/SOL)
+        # 3. Deribit Index (for BTC/ETH/SOL)
         if base in ("BTC", "ETH", "SOL"):
             providers_tried.append("deribit_index")
             try:
@@ -349,23 +317,7 @@ class _PublicMarketFeed:
             except Exception as exc:
                 last_err = exc
 
-        # 5. Secondary backup: api.binance.com
-        providers_tried.append("binance_com")
-        try:
-            b_pair = pair if quote != "USD" else f"{base}USDT"
-            b_quote = quote if quote != "USD" else "USDT"
-            data = self._get_json(
-                f"{self.BINANCE_COM_BASE}/api/v3/ticker/price",
-                params={"symbol": b_pair},
-                ttl_s=4.0,
-            )
-            price = float(data["price"])
-            if price > 0:
-                return price, "binance_com", b_quote, int(time.time() * 1000), providers_tried
-        except Exception as exc:
-            last_err = exc
-
-        # 6. Secondary backup: CoinGecko
+        # 4. CoinGecko
         cg_id = self._COINGECKO_ID_MAP.get(base)
         if cg_id:
             providers_tried.append("coingecko")
@@ -381,6 +333,22 @@ class _PublicMarketFeed:
             except Exception as exc:
                 last_err = exc
 
+        # 5. Geo-safe unauthenticated Spot-only public archive (data-api.binance.vision)
+        providers_tried.append("binance_vision")
+        try:
+            bv_pair = pair if quote != "USD" else f"{base}USDT"
+            bv_quote = quote if quote != "USD" else "USDT"
+            data = self._get_json(
+                f"{self.BINANCE_VISION_BASE}/api/v3/ticker/price",
+                params={"symbol": bv_pair},
+                ttl_s=4.0,
+            )
+            price = float(data["price"])
+            if price > 0:
+                return price, "binance_vision", bv_quote, int(time.time() * 1000), providers_tried
+        except Exception as exc:
+            last_err = exc
+
         raise RuntimeError(f"Unable to fetch spot price for {symbol} ({providers_tried}): {last_err}")
 
     def fetch_spot_price(self, symbol: str) -> Tuple[float, str]:
@@ -389,12 +357,11 @@ class _PublicMarketFeed:
 
     def fetch_perp_premium_meta(self, symbol: str) -> Tuple[float, float, str, str, int, List[str]]:
         """
-        Fetches perpetual mark price & 8h funding rate across geo-resilient venues:
-        Hyperliquid -> Deribit -> OKX -> Binance Futures.
+        Fetches perpetual mark price & 8h funding rate across non-Binance venues:
+        Hyperliquid -> Deribit -> OKX Swap.
         Returns (mark_price, funding_rate_8h, venue, quote_ccy, ts_ms, providers_tried).
         """
-        base, quote = self.split_symbol(symbol)
-        pair = f"{base}{quote}"
+        base, _ = self.split_symbol(symbol)
         providers_tried: List[str] = []
         last_err: Optional[Exception] = None
 
@@ -458,23 +425,6 @@ class _PublicMarketFeed:
         except Exception as exc:
             last_err = exc
 
-        # 4. Secondary backup: Binance Futures
-        providers_tried.append("binance_futures")
-        try:
-            b_pair = pair if quote != "USD" else f"{base}USDT"
-            data = self._get_json(
-                f"{self.FUTURES_BASE}/fapi/v1/premiumIndex",
-                params={"symbol": b_pair},
-                ttl_s=4.0,
-            )
-            mark = float(data["markPrice"])
-            funding = float(data.get("lastFundingRate") or 0.0)
-            ts_ms = int(data.get("time") or time.time() * 1000)
-            if mark > 0:
-                return mark, funding, "binance_futures", "USDT", ts_ms, providers_tried
-        except Exception as exc:
-            last_err = exc
-
         raise RuntimeError(f"All perp venues failed for {symbol} ({providers_tried}): {last_err}")
 
     def fetch_perp_premium(self, symbol: str) -> Tuple[float, float, str]:
@@ -483,8 +433,7 @@ class _PublicMarketFeed:
         return mark, funding, src
 
     def fetch_open_interest(self, symbol: str) -> Optional[float]:
-        base, quote = self.split_symbol(symbol)
-        pair = f"{base}{quote}"
+        base, _ = self.split_symbol(symbol)
 
         # 1. Hyperliquid
         try:
@@ -500,7 +449,21 @@ class _PublicMarketFeed:
         except Exception:
             pass
 
-        # 2. OKX
+        # 2. Deribit Perpetual
+        if base in ("BTC", "ETH", "SOL"):
+            try:
+                db = self._get_json(
+                    f"{self.DERIBIT_BASE}/ticker",
+                    params={"instrument_name": f"{base}-PERPETUAL"},
+                    ttl_s=10.0,
+                )
+                oi = float((db.get("result") or {}).get("open_interest") or 0.0)
+                if oi > 0:
+                    return oi
+            except Exception:
+                pass
+
+        # 3. OKX Swap
         try:
             resp = self._get_json(
                 f"{self.OKX_BASE}/api/v5/public/open-interest",
@@ -515,20 +478,6 @@ class _PublicMarketFeed:
         except Exception:
             pass
 
-        # 3. Secondary backup: Binance Futures
-        try:
-            b_pair = pair if quote != "USD" else f"{base}USDT"
-            data = self._get_json(
-                f"{self.FUTURES_BASE}/fapi/v1/openInterest",
-                params={"symbol": b_pair},
-                ttl_s=10.0,
-            )
-            oi = float(data.get("openInterest") or 0.0)
-            if oi > 0:
-                return oi
-        except Exception:
-            pass
-
         return None
 
     def fetch_spot_trades(self, symbol: str, limit: int = 100) -> List[Dict[str, Any]]:
@@ -536,27 +485,7 @@ class _PublicMarketFeed:
         pair = f"{base}{quote}"
         last_err: Optional[Exception] = None
 
-        # 1. Binance Data Vision
-        try:
-            bv_pair = pair if quote != "USD" else f"{base}USDT"
-            rows = self._get_json(
-                f"{self.BINANCE_VISION_BASE}/api/v3/trades",
-                params={"symbol": bv_pair, "limit": min(limit, 500)},
-                ttl_s=3.0,
-            )
-            return [
-                {
-                    "price": float(r["price"]),
-                    "amount": float(r["qty"]),
-                    "cost": float(r.get("quoteQty") or (float(r["price"]) * float(r["qty"]))),
-                    "side": "sell" if r.get("isBuyerMaker") else "buy",
-                }
-                for r in rows
-            ]
-        except Exception as exc:
-            last_err = exc
-
-        # 2. Coinbase Exchange
+        # 1. Coinbase Exchange
         try:
             rows = self._get_json(
                 f"{self.COINBASE_BASE}/products/{base}-USD/trades",
@@ -575,7 +504,7 @@ class _PublicMarketFeed:
         except Exception as exc:
             last_err = exc
 
-        # 3. Kraken Trades
+        # 2. Kraken Trades
         try:
             k_pair = self._kraken_pair(base, "USD" if quote in ("USD", "USDT") else quote)
             kr = self._get_json(
@@ -598,11 +527,12 @@ class _PublicMarketFeed:
         except Exception as exc:
             last_err = exc
 
-        # 4. Secondary backup: api.binance.com
+        # 3. Geo-safe unauthenticated Spot-only public archive (data-api.binance.vision)
         try:
+            bv_pair = pair if quote != "USD" else f"{base}USDT"
             rows = self._get_json(
-                f"{self.BINANCE_COM_BASE}/api/v3/trades",
-                params={"symbol": pair, "limit": min(limit, 500)},
+                f"{self.BINANCE_VISION_BASE}/api/v3/trades",
+                params={"symbol": bv_pair, "limit": min(limit, 500)},
                 ttl_s=3.0,
             )
             return [
@@ -651,33 +581,20 @@ class _PublicMarketFeed:
         pair = f"{base}{quote}"
         closes: List[float] = []
 
-        # 1. Binance Data Vision klines
+        # 1. Coinbase Exchange daily candles ([time, low, high, open, close, volume] newest first)
         try:
-            bv_pair = pair if quote != "USD" else f"{base}USDT"
-            klines = self._get_json(
-                f"{self.BINANCE_VISION_BASE}/api/v3/klines",
-                params={"symbol": bv_pair, "interval": "1d", "limit": lookback_days + 1},
+            candles = self._get_json(
+                f"{self.COINBASE_BASE}/products/{base}-USD/candles",
+                params={"granularity": 86400},
                 ttl_s=300.0,
             )
-            closes = [float(k[4]) for k in klines if len(k) > 4]
+            if isinstance(candles, list) and len(candles) >= 7:
+                ordered = sorted(candles[:lookback_days + 1], key=lambda c: c[0])
+                closes = [float(c[4]) for c in ordered if len(c) > 4]
         except Exception:
             closes = []
 
-        # 2. Coinbase Exchange daily candles ([time, low, high, open, close, volume] newest first)
-        if len(closes) < 7:
-            try:
-                candles = self._get_json(
-                    f"{self.COINBASE_BASE}/products/{base}-USD/candles",
-                    params={"granularity": 86400},
-                    ttl_s=300.0,
-                )
-                if isinstance(candles, list) and len(candles) >= 7:
-                    ordered = sorted(candles[:lookback_days + 1], key=lambda c: c[0])
-                    closes = [float(c[4]) for c in ordered if len(c) > 4]
-            except Exception:
-                closes = []
-
-        # 3. Kraken daily OHLC
+        # 2. Kraken daily OHLC
         if len(closes) < 7:
             try:
                 k_pair = self._kraken_pair(base, "USD" if quote in ("USD", "USDT") else quote)
@@ -693,12 +610,13 @@ class _PublicMarketFeed:
             except Exception:
                 closes = []
 
-        # 4. Secondary backup: api.binance.com klines
+        # 3. Geo-safe unauthenticated Spot-only public archive (data-api.binance.vision)
         if len(closes) < 7:
             try:
+                bv_pair = pair if quote != "USD" else f"{base}USDT"
                 klines = self._get_json(
-                    f"{self.BINANCE_COM_BASE}/api/v3/klines",
-                    params={"symbol": pair, "interval": "1d", "limit": lookback_days + 1},
+                    f"{self.BINANCE_VISION_BASE}/api/v3/klines",
+                    params={"symbol": bv_pair, "interval": "1d", "limit": lookback_days + 1},
                     ttl_s=300.0,
                 )
                 closes = [float(k[4]) for k in klines if len(k) > 4]
@@ -815,7 +733,7 @@ class MarketMicrostructureEngine:
         except Exception as e:
             latency_ms = int((time.time() - start_t) * 1000)
             return _upstream_unavailable(
-                providers_tried=["binance_vision", "coinbase_exchange", "kraken", "hyperliquid", "binance_com"],
+                providers_tried=["coinbase_exchange", "kraken", "hyperliquid", "binance_vision"],
                 detail=str(e),
                 extra={"symbol": standardized_symbol, "latency_ms": latency_ms},
             )
@@ -1101,7 +1019,7 @@ class OrderBookSlippageSimulator:
         except Exception as e:
             latency_ms = int((time.time() - start_t) * 1000)
             return _upstream_unavailable(
-                providers_tried=["binance_vision", "coinbase_exchange", "kraken", "hyperliquid", "binance_com"],
+                providers_tried=["coinbase_exchange", "kraken", "hyperliquid", "binance_vision"],
                 detail=str(e),
                 extra={"symbol": standardized, "side": order_side, "latency_ms": latency_ms},
             )
@@ -1111,7 +1029,7 @@ class SmartMoneyWhaleRadar:
     """
     Institutional-Grade Smart Money & Whale Flow Engine:
     Aggregates large block trades, calculates Whale Accumulation Index,
-    identifies real orderbook liquidity clusters + Hyperliquid/Binance OI & funding,
+    identifies real orderbook liquidity clusters + Hyperliquid/Deribit/OKX OI & funding,
     and detects institutional accumulation vs retail distribution.
     """
 
@@ -1260,7 +1178,7 @@ class SmartMoneyWhaleRadar:
         except Exception as e:
             latency_ms = int((time.time() - start_t) * 1000)
             return _upstream_unavailable(
-                providers_tried=["binance_vision", "coinbase_exchange", "kraken", "hyperliquid", "binance_com"],
+                providers_tried=["coinbase_exchange", "kraken", "hyperliquid", "binance_vision"],
                 detail=str(e),
                 extra={"symbol": standardized, "latency_ms": latency_ms},
             )
@@ -1523,7 +1441,7 @@ class PredictionMarketArbitrageRadar:
             providers_tried.append(str(spot_src))
         except Exception as exc:
             return _upstream_unavailable(
-                providers_tried=["binance_vision", "coinbase_exchange", "kraken", "deribit_index", "binance_com", "coingecko"],
+                providers_tried=["coinbase_exchange", "kraken", "deribit_index", "coingecko", "binance_vision"],
                 detail=f"Failed to fetch live spot price for {symbol}: {exc}",
                 extra={"asset": clean_asset, "latency_ms": int((time.time() - start_t) * 1000)},
             )
@@ -1544,7 +1462,7 @@ class PredictionMarketArbitrageRadar:
                 providers_tried.append("realized_vol_klines")
             except Exception as exc:
                 return _upstream_unavailable(
-                    providers_tried=providers_tried + ["binance_vision_klines", "coinbase_candles", "kraken_ohlc"],
+                    providers_tried=providers_tried + ["coinbase_candles", "kraken_ohlc", "binance_vision_klines"],
                     detail=f"Failed to fetch live implied or realized volatility for {symbol}: {exc}",
                     extra={"asset": clean_asset, "latency_ms": int((time.time() - start_t) * 1000)},
                 )

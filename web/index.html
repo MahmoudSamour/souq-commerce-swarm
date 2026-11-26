@@ -1173,7 +1173,6 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
       { name: 'prediction_market_arbitrage_radar', category: 'Prediction', price_usdc: 0.03 },
       { name: 'dev_api_cheatsheet_vault', category: 'Developer Intel', price_usdc: 0.01 },
       { name: 'daily_tech_ai_trends_radar', category: 'Tech Intel', price_usdc: 0.01 },
-      { name: 'ast_security_scanner', category: 'Security', price_usdc: 0.03 },
       { name: 'synthetic_schema_verifier', category: 'Verification', price_usdc: 0.01 },
       { name: 'prompt_injection_firewall', category: 'Cyber Defense', price_usdc: 0.01 },
       { name: 'smart_contract_honeypot_radar', category: 'Cyber Defense', price_usdc: 0.03 },
@@ -1241,11 +1240,6 @@ res = client.call_tool("token_context_compressor", {"raw_content": "..."})</code
         desc: 'Live AI technology radar from GitHub AI repos, HackerNews top stories, and arXiv cs.AI/cs.CL.',
         primary: { force_refresh: false },
         alt: { force_refresh: true }
-      },
-      ast_security_scanner: {
-        desc: 'Static AST code security linter detecting eval/exec and dangerous shell invocations.',
-        primary: { source_code: 'import subprocess\ndef run(cmd):\n    return subprocess.run(cmd, shell=True)\n' },
-        alt: { source_code: 'def safe_add(a: int, b: int) -> int:\n    return a + b\n' }
       },
       synthetic_schema_verifier: {
         desc: 'Validates JSON payloads against expected Python type schemas ("str", "float", "int", "bool", "any").',

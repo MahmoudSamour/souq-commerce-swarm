@@ -18,10 +18,12 @@ from agents.treasury.db_backend import (
     resolve_db_target,
     db_transaction,
     ensure_parent_dir,
+    load_souq_env,
+    get_ephemeral_test_pepper,
 )
 
+load_souq_env()
 logger = logging.getLogger("souq.api_key_ledger")
-_DEFAULT_PEPPER = "souq_sovereign_pepper_2026"
 
 
 def normalize_reference_id(ref: str) -> str:
@@ -41,13 +43,13 @@ class APIKeyLedger:
         if not self.is_postgres:
             ensure_parent_dir(self.db_target)
 
-        pepper_env = os.getenv("SOUQ_API_KEY_PEPPER", "")
-        self._secret_pepper = pepper_env or _DEFAULT_PEPPER
+        pepper_env = os.getenv("SOUQ_API_KEY_PEPPER") or os.getenv("SOUQ_HASH_PEPPER") or ""
+        self._secret_pepper = pepper_env or get_ephemeral_test_pepper()
         is_prod = os.getenv("ENV", "").lower() == "production" or bool(os.getenv("KOYEB_APP_ID"))
-        if is_prod and (not pepper_env or pepper_env == _DEFAULT_PEPPER):
+        if is_prod and not pepper_env:
             logger.warning(
-                "SOUQ_API_KEY_PEPPER is unset or using the default insecure pepper in production; "
-                "configure a strong random SOUQ_API_KEY_PEPPER secret."
+                "SOUQ_API_KEY_PEPPER / SOUQ_HASH_PEPPER is unset in production; "
+                "configure a strong random secret pepper."
             )
         self._init_db()
 

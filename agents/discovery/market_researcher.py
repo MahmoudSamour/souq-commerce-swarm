@@ -47,8 +47,8 @@ class MarketResearchAgent:
         "MARKET_MICROSTRUCTURE": "quant_microstructure_radar",
         "QUANT_MICROSTRUCTURE_RADAR": "quant_microstructure_radar",
         "AST_STRUCTURAL_SLICER": "ast_structural_slicer",
-        "AST_SECURITY_LINTER": "ast_security_scanner",
-        "AST_SECURITY_SCANNER": "ast_security_scanner",
+        "AST_SECURITY_LINTER": "deep_ast_vulnerability_auditor",
+        "DEEP_AST_VULNERABILITY_AUDITOR": "deep_ast_vulnerability_auditor",
         "PROMPT_INJECTION_FIREWALL": "prompt_injection_firewall",
         "SMART_CONTRACT_HONEYPOT_RADAR": "smart_contract_honeypot_radar",
         "SECRET_LEAK_SCANNER": "secret_leak_scanner",
@@ -95,7 +95,7 @@ class MarketResearchAgent:
                 willingness_to_pay_usdc=0.02,
                 competitive_density="MEDIUM",
                 key_intent_queries=[
-                    "binance order book imbalance obi api",
+                    "crypto order book imbalance obi api",
                     "crypto liquidation cascade risk feed",
                     "real time orderbook depth mcp",
                     "sub-cent crypto microstructure"
@@ -185,7 +185,7 @@ class MarketResearchAgent:
             ),
             AgentDemandSignal(
                 category="CODE_SECURITY",
-                target_tool="ast_security_scanner",
+                target_tool="deep_ast_vulnerability_auditor",
                 search_volume_score=9.2,
                 willingness_to_pay_usdc=0.03,
                 competitive_density="LOW",
@@ -350,6 +350,67 @@ class MarketResearchAgent:
 
         return market_regime, " ".join(verdict_parts)
 
+    @staticmethod
+    def query_funnel_telemetry(db_path: str) -> Dict[str, Any]:
+        """
+        Queries real Postgres/DuckDB tables for:
+        1. 402 -> SETTLED conversion & drop-off rates per tool (`a2a_negotiations`)
+        2. UNKNOWN_TOOL unmet buyer demand (`http_traffic_telemetry`)
+        """
+        dropoffs: Dict[str, Dict[str, Any]] = {}
+        unknown_tools: List[Dict[str, Any]] = []
+        try:
+            from agents.treasury.db_backend import resolve_db_target, db_transaction
+
+            db_target, _ = resolve_db_target(db_path)
+            with db_transaction(db_target, read_only=True) as con:
+                try:
+                    rows = con.execute("""
+                        SELECT
+                            tool_requested,
+                            SUM(CASE WHEN outcome = 'CHALLENGED_402' THEN 1 ELSE 0 END) AS challenged_402,
+                            SUM(CASE WHEN outcome = 'SETTLED' THEN 1 ELSE 0 END) AS settled_count,
+                            COUNT(*) AS total_events
+                        FROM a2a_negotiations
+                        GROUP BY tool_requested
+                    """).fetchall()
+                    for tool_name, ch_402, settled, total in rows:
+                        ch_i = int(ch_402 or 0)
+                        set_i = int(settled or 0)
+                        dropoff_pct = round(((ch_i - set_i) / ch_i) * 100.0, 2) if ch_i > 0 else 0.0
+                        dropoffs[str(tool_name)] = {
+                            "tool": str(tool_name),
+                            "challenged_402_count": ch_i,
+                            "settled_count": set_i,
+                            "total_events": int(total or 0),
+                            "dropoff_rate_pct": max(0.0, dropoff_pct),
+                        }
+                except Exception:
+                    pass
+
+                try:
+                    unk_rows = con.execute("""
+                        SELECT tool_name, COUNT(*) AS hits
+                        FROM http_traffic_telemetry
+                        WHERE billing_status = 'UNKNOWN_TOOL' AND tool_name IS NOT NULL
+                        GROUP BY tool_name
+                        ORDER BY hits DESC
+                        LIMIT 20
+                    """).fetchall()
+                    unknown_tools = [
+                        {"requested_tool": str(r[0]), "hits": int(r[1] or 0)}
+                        for r in unk_rows
+                    ]
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return {
+            "funnel_dropoffs_402_to_settled": dropoffs,
+            "unknown_tool_demand": unknown_tools,
+        }
+
     def review_catalog_and_decide(
         self,
         proposed_catalog: List[Dict[str, Any]],
@@ -359,8 +420,12 @@ class MarketResearchAgent:
     ) -> Dict[str, Any]:
         """
         Audits proposed catalog items from the Conductor, scores each against
-        baseline demand plus live telemetry/negotiation conversion stats, and issues directives.
+        baseline demand plus live telemetry/negotiation conversion stats & real DB 402->SETTLED drop-offs.
         """
+        funnel_metrics = self.query_funnel_telemetry(db_path) if db_path else {
+            "funnel_dropoffs_402_to_settled": {},
+            "unknown_tool_demand": [],
+        }
         if db_path and (telemetry_summary is None or negotiation_stats is None):
             live_telemetry, live_negotiations = self._load_live_stats(
                 db_path=db_path,
@@ -466,5 +531,7 @@ class MarketResearchAgent:
             "status": "REVIEW_COMPLETE",
             "total_items_reviewed": len(reviewed_items),
             "reviewed_catalog": reviewed_items,
+            "funnel_dropoffs_402_to_settled": funnel_metrics.get("funnel_dropoffs_402_to_settled", {}),
+            "unknown_tool_demand": funnel_metrics.get("unknown_tool_demand", []),
             "market_directive": directive.model_dump()
         }

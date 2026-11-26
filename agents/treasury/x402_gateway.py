@@ -4,23 +4,33 @@ Handles cryptographic 402 payment challenges, strict ERC-20 Transfer log verific
 and anti-replay nullification for autonomous agent clients.
 """
 
+import base64
+import hashlib
+import hmac
+import json
 import os
 import re
+import secrets
 import time
 import threading
 import weakref
-from typing import Dict, Any, Tuple, Optional, List
+from typing import Dict, Any, Tuple, Optional, List, Callable, Set
+import requests
 import yaml
 from web3 import Web3
 from eth_account import Account
-from eth_account.messages import encode_defunct
-from dotenv import load_dotenv
+from eth_account.messages import encode_defunct, encode_typed_data
 
+from agents.treasury.db_backend import (
+    load_souq_env,
+    get_ephemeral_test_pepper,
+    db_transaction,
+)
 from agents.treasury.crypto_receipt_engine import CryptoReceiptEngine
 from agents.treasury.api_key_ledger import APIKeyLedger
 from agents.analytics.negotiation_tracker import NegotiationTracker
 
-load_dotenv("config/.env")
+load_souq_env()
 
 # Keccak-256 topic for ERC-20 Transfer(address indexed from, address indexed to, uint256 value)
 ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -83,6 +93,7 @@ class X402PaymentGateway:
         recipient_wallet: Optional[str] = None,
         rpc_url: Optional[str] = None,
         api_key_ledger: Optional[APIKeyLedger] = None,
+        facilitator_url: Optional[str] = None,
     ):
         self.receipt_engine = receipt_engine or CryptoReceiptEngine()
         self.negotiation_tracker = negotiation_tracker or NegotiationTracker()
@@ -109,40 +120,187 @@ class X402PaymentGateway:
         self.rpc_urls: List[str] = list(dict.fromkeys([primary_rpc] + ([] if rpc_url else DEFAULT_BASE_RPCS)))
         self.usdc_contract = os.getenv("BASE_USDC_CONTRACT", "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")
         self.web3 = Web3(Web3.HTTPProvider(self.rpc_url, request_kwargs=RPC_REQUEST_KWARGS))
+        self.facilitator_url = (
+            facilitator_url
+            or os.getenv("SOUQ_X402_FACILITATOR_URL", "https://x402.org/facilitator")
+        ).rstrip("/")
 
         # AML / Compliance Deny-List for Restricted and Sanctioned Source Addresses
         self.restricted_addresses = set(
             addr.lower() for addr in os.getenv("RESTRICTED_SOURCE_ADDRESSES", "").split(",") if addr.strip()
         )
 
+        # Request-bound quote & work_order_id anti-replay registry
+        self._quote_lock = threading.RLock()
+        self._issued_quotes: Dict[str, Dict[str, Any]] = {}
+        self._consumed_work_orders: Set[str] = set()
+        self._redeemed_nullifiers: Set[str] = set()
+        self._init_eip3009_nullifiers_table()
+
+    def _init_eip3009_nullifiers_table(self) -> None:
+        db_target = getattr(self.receipt_engine, "db_target", None)
+        if not db_target:
+            return
+        try:
+            with db_transaction(db_target, read_only=False) as con:
+                con.execute("""
+                    CREATE TABLE IF NOT EXISTS x402_eip3009_nullifiers (
+                        nullifier VARCHAR PRIMARY KEY,
+                        tx_hash VARCHAR,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+        except Exception:
+            pass
+
+    def _record_eip3009_nullifier(self, nullifier: Optional[str], tx_hash: str) -> None:
+        norm = (nullifier or "").strip().lower()
+        if not norm:
+            return
+        with self._quote_lock:
+            self._redeemed_nullifiers.add(norm)
+        db_target = getattr(self.receipt_engine, "db_target", None)
+        if not db_target:
+            return
+        try:
+            with db_transaction(db_target, read_only=False) as con:
+                con.execute(
+                    """
+                    INSERT INTO x402_eip3009_nullifiers (nullifier, tx_hash)
+                    VALUES (?, ?)
+                    ON CONFLICT (nullifier) DO NOTHING
+                    """,
+                    (norm, (tx_hash or "").strip().lower()),
+                )
+        except Exception:
+            pass
+
+    def _is_eip3009_nullifier_used(self, nullifier: str) -> bool:
+        norm = (nullifier or "").strip().lower()
+        if not norm:
+            return False
+        with self._quote_lock:
+            if norm in self._redeemed_nullifiers:
+                return True
+        db_target = getattr(self.receipt_engine, "db_target", None)
+        if not db_target:
+            return False
+        try:
+            with db_transaction(db_target, read_only=True) as con:
+                row = con.execute(
+                    "SELECT 1 FROM x402_eip3009_nullifiers WHERE nullifier = ?",
+                    (norm,),
+                ).fetchone()
+                return row is not None
+        except Exception:
+            return False
+
+    @staticmethod
+    def _get_quote_signing_key() -> bytes:
+        key = (
+            os.getenv("SOUQ_HASH_PEPPER")
+            or os.getenv("SOUQ_RECEIPT_SIGNING_KEY")
+            or os.getenv("SOUQ_API_KEY_PEPPER")
+            or get_ephemeral_test_pepper()
+        )
+        return key.encode("utf-8")
+
+    def _compute_quote_hash(self, quote_fields: Dict[str, Any]) -> str:
+        canonical = json.dumps(quote_fields, sort_keys=True, separators=(",", ":"))
+        return hmac.new(
+            self._get_quote_signing_key(),
+            f"SOUQ_X402_QUOTE_V1:{canonical}".encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
     def generate_402_challenge(
         self,
         tool_name: str,
         price_usdc: float,
         client_agent_id: str = "anonymous_agent",
-        client_user_agent: str = "AI-Agent-Client/1.0"
+        client_user_agent: str = "AI-Agent-Client/1.0",
+        payer_address: Optional[str] = None,
+        work_order_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Creates the standardized x402 payment challenge JSON payload.
+        Creates the standardized Coinbase x402 v1 (EIP-3009) + direct Base USDC payment challenge
+        bound with an HMAC-SHA256 quote_hash, unique work_order_id, and optional payer_address.
         """
+        created_at_epoch = int(time.time())
+        expires_at_epoch = created_at_epoch + self.max_tx_age_seconds
+        amount_units = int(round(price_usdc * 1e6))  # USDC has 6 decimals
+        wo_id = (work_order_id or f"wo_{secrets.token_hex(12)}").strip()
+        bound_payer = payer_address.strip().lower() if isinstance(payer_address, str) and payer_address.strip() else None
+
+        quote_fields = {
+            "work_order_id": wo_id,
+            "tool_name": tool_name,
+            "amount_units": amount_units,
+            "recipient_address": self.recipient_wallet.lower(),
+            "token_contract": self.usdc_contract.lower(),
+            "chain_id": 8453,
+            "created_at_epoch": created_at_epoch,
+            "expires_at_epoch": expires_at_epoch,
+            "payer_address": bound_payer,
+        }
+        quote_hash = self._compute_quote_hash(quote_fields)
+
+        with self._quote_lock:
+            if len(self._issued_quotes) > 5000:
+                now_cut = int(time.time())
+                self._issued_quotes = {
+                    k: v for k, v in self._issued_quotes.items()
+                    if int(v.get("expires_at_epoch", 0)) >= now_cut
+                }
+            self._issued_quotes[wo_id] = {**quote_fields, "quote_hash": quote_hash}
+
         challenge = {
             "status_code": 402,
             "error": "Payment Required",
             "protocol": "x402-v1.0",
+            "x402Version": 1,
+            "work_order_id": wo_id,
+            "quote_hash": quote_hash,
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": "base",
+                    "maxAmountRequired": str(amount_units),
+                    "resource": f"/api/tools/call/{tool_name}",
+                    "description": f"SOUQ MCP Tool Invocation: {tool_name}",
+                    "mimeType": "application/json",
+                    "payTo": self.recipient_wallet,
+                    "maxTimeoutSeconds": self.max_tx_age_seconds,
+                    "asset": self.usdc_contract,
+                    "extra": {
+                        "name": "USD Coin",
+                        "version": "2",
+                        "work_order_id": wo_id,
+                        "quote_hash": quote_hash,
+                        "expires_at_epoch": expires_at_epoch,
+                        "facilitator_url": self.facilitator_url,
+                    },
+                }
+            ],
             "payment_details": {
                 "chain": "Base",
                 "chain_id": 8453,
                 "token": "USDC",
                 "token_contract": self.usdc_contract,
                 "amount": f"{price_usdc:.4f}",
-                "amount_units": int(round(price_usdc * 1e6)),  # USDC has 6 decimals
+                "amount_units": amount_units,
                 "recipient_address": self.recipient_wallet,
                 "valid_for_seconds": self.max_tx_age_seconds,
-                "created_at_epoch": int(time.time())
+                "created_at_epoch": created_at_epoch,
+                "expires_at_epoch": expires_at_epoch,
+                "work_order_id": wo_id,
+                "quote_hash": quote_hash,
+                "payer_address": bound_payer,
             },
             "instructions": (
-                "Transfer exact USDC amount on Base to recipient_address and retry with header "
-                "[X-Payment-Tx: <tx_hash>], or fund a prepaid key once via /api/credits/topup and pass [X-API-Key: <key>]."
+                "Settle gaslessly in 1 RTT via x402 v1 EIP-3009 transferWithAuthorization in header "
+                "[PAYMENT-SIGNATURE / X-PAYMENT], OR transfer exact USDC on Base and retry with "
+                "[X-Payment-Tx: <tx_hash>], OR fund a prepaid key via /api/credits/topup [X-API-Key: <key>]."
             ),
             "prepaid_credit_topup": {
                 "endpoint": "/api/credits/topup",
@@ -167,6 +325,314 @@ class X402PaymentGateway:
 
         return challenge
 
+    def verify_quote_binding(
+        self,
+        work_order_id: str,
+        quote_hash: str,
+        tool_name: str,
+        expected_price_usdc: float,
+        payer_address: Optional[str] = None,
+        now_epoch: Optional[int] = None,
+    ) -> Tuple[bool, str]:
+        """
+        Verifies HMAC-signed quote_hash + work_order_id binding to prevent cross-tool replay
+        and front-running. Rejects unknown, tampered, expired, mismatched, or already-consumed quotes.
+        """
+        wo_id = (work_order_id or "").strip()
+        q_hash = (quote_hash or "").strip().lower()
+        if not wo_id or not q_hash:
+            return False, "Both work_order_id and quote_hash are required for quote binding."
+
+        now_ts = int(time.time()) if now_epoch is None else int(now_epoch)
+        expected_units = int(round(expected_price_usdc * 1e6))
+
+        with self._quote_lock:
+            if wo_id in self._consumed_work_orders:
+                return False, f"work_order_id '{wo_id}' has already been consumed (replay rejected)."
+
+            issued = self._issued_quotes.get(wo_id)
+            if not issued:
+                return False, f"Unknown or expired work_order_id '{wo_id}'."
+
+            if now_ts > int(issued["expires_at_epoch"]):
+                return False, f"Quote for work_order_id '{wo_id}' has expired."
+
+            if issued["tool_name"] != tool_name:
+                return (
+                    False,
+                    f"Cross-tool quote replay rejected: quote bound to '{issued['tool_name']}', not '{tool_name}'.",
+                )
+
+            if int(issued["amount_units"]) < expected_units:
+                return False, "Quote amount_units is below expected tool price."
+
+            bound_payer = issued.get("payer_address")
+            if bound_payer and payer_address and payer_address.strip().lower() != bound_payer:
+                return False, "Payer address does not match quote_hash bound payer_address."
+
+            recomputed = self._compute_quote_hash({
+                "work_order_id": issued["work_order_id"],
+                "tool_name": issued["tool_name"],
+                "amount_units": issued["amount_units"],
+                "recipient_address": issued["recipient_address"],
+                "token_contract": issued["token_contract"],
+                "chain_id": issued["chain_id"],
+                "created_at_epoch": issued["created_at_epoch"],
+                "expires_at_epoch": issued["expires_at_epoch"],
+                "payer_address": issued["payer_address"],
+            })
+            if not hmac.compare_digest(recomputed.lower(), q_hash):
+                return False, "Invalid or tampered HMAC quote_hash."
+
+        return True, "OK"
+
+    def _consume_work_order(self, work_order_id: Optional[str]) -> None:
+        wo_id = (work_order_id or "").strip()
+        if not wo_id:
+            return
+        with self._quote_lock:
+            self._consumed_work_orders.add(wo_id)
+
+    @staticmethod
+    def parse_x402_payment_header(header_value: Optional[str]) -> Optional[Dict[str, Any]]:
+        """
+        Parses Coinbase x402 v1 PAYMENT-SIGNATURE / X-PAYMENT base64-encoded JSON header.
+        Returns normalized dict if valid x402 EIP-3009 payload, else None.
+        """
+        if not header_value or not isinstance(header_value, str):
+            return None
+        raw = header_value.strip()
+        if not raw:
+            return None
+
+        parsed: Any = None
+        if raw.startswith("{"):
+            try:
+                parsed = json.loads(raw)
+            except Exception:
+                return None
+        else:
+            # Pad base64 if needed
+            padded = raw + "=" * (-len(raw) % 4)
+            for decoder in (base64.b64decode, base64.urlsafe_b64decode):
+                try:
+                    decoded = decoder(padded.encode("ascii")).decode("utf-8")
+                    parsed = json.loads(decoded)
+                    break
+                except Exception:
+                    continue
+
+        if not isinstance(parsed, dict):
+            return None
+
+        payload = parsed.get("payload")
+        if not isinstance(payload, dict):
+            return None
+        auth = payload.get("authorization")
+        sig = payload.get("signature")
+        if not isinstance(auth, dict) or not isinstance(sig, str) or not sig.strip():
+            return None
+
+        required_auth = ("from", "to", "value", "validAfter", "validBefore", "nonce")
+        if not all(k in auth for k in required_auth):
+            return None
+
+        return {
+            "x402Version": int(parsed.get("x402Version", 1)),
+            "scheme": str(parsed.get("scheme", "")).strip().lower(),
+            "network": str(parsed.get("network", "")).strip().lower(),
+            "signature": sig.strip(),
+            "authorization": auth,
+            "extra": parsed.get("extra") if isinstance(parsed.get("extra"), dict) else (
+                payload.get("extra") if isinstance(payload.get("extra"), dict) else {}
+            ),
+            "raw": parsed,
+        }
+
+    def verify_x402_eip3009_payment(
+        self,
+        payment_header: str,
+        expected_price_usdc: float,
+        tool_name: str,
+        client_agent_id: str = "anonymous_agent",
+        client_user_agent: str = "AI-Agent-Client/1.0",
+        work_order_id: Optional[str] = None,
+        quote_hash: Optional[str] = None,
+        verify_with_facilitator: Optional[bool] = None,
+        facilitator_post: Optional[Callable[..., Any]] = None,
+    ) -> Tuple[bool, Dict[str, Any]]:
+        """
+        Verifies a Coinbase x402 v1 EIP-3009 transferWithAuthorization payment header
+        (gasless 1-RTT settlement via EIP-712 signature + optional Facilitator /verify & /settle).
+        """
+        parsed = self.parse_x402_payment_header(payment_header)
+        if not parsed:
+            return False, {"error": "Invalid x402 v1 EIP-3009 PAYMENT-SIGNATURE / X-PAYMENT header."}
+
+        if parsed["scheme"] != "exact":
+            return False, {"error": f"Unsupported x402 scheme '{parsed['scheme']}'; expected 'exact'."}
+        if parsed["network"] not in ("base", "eip155:8453", "base-mainnet"):
+            return False, {"error": f"Unsupported x402 network '{parsed['network']}'; expected 'base'."}
+
+        auth = parsed["authorization"]
+        payer = str(auth.get("from", "")).strip()
+        recipient = str(auth.get("to", "")).strip()
+        nonce = str(auth.get("nonce", "")).strip()
+        if not re.match(r"^0x[0-9a-fA-F]{40}$", payer) or not re.match(r"^0x[0-9a-fA-F]{40}$", recipient):
+            return False, {"error": "Invalid EVM address in EIP-3009 authorization."}
+        if not re.match(r"^0x[0-9a-fA-F]{64}$", nonce):
+            return False, {"error": "Invalid 32-byte hex nonce in EIP-3009 authorization."}
+
+        if recipient.lower() != self.recipient_wallet.lower():
+            return False, {"error": "EIP-3009 authorization recipient does not match SOUQ recipient_wallet."}
+
+        if payer.lower() in self.restricted_addresses:
+            return False, {
+                "error": "Payment Rejected: Restricted Source",
+                "payer_address": payer,
+            }
+
+        try:
+            value_units = int(str(auth["value"]))
+            valid_after = int(str(auth["validAfter"]))
+            valid_before = int(str(auth["validBefore"]))
+        except (TypeError, ValueError):
+            return False, {"error": "Invalid numeric fields in EIP-3009 authorization."}
+
+        expected_units = int(round(expected_price_usdc * 1e6))
+        if value_units < expected_units:
+            return False, {
+                "error": f"Insufficient EIP-3009 USDC value: received {value_units}, required {expected_units}."
+            }
+
+        now_ts = int(time.time())
+        if now_ts < valid_after:
+            return False, {"error": "EIP-3009 authorization is not yet valid (validAfter in future)."}
+        if now_ts >= valid_before:
+            return False, {"error": "EIP-3009 authorization has expired (validBefore passed)."}
+
+        # Optional quote_hash / work_order_id binding
+        extra = parsed.get("extra") or {}
+        eff_wo = work_order_id or extra.get("work_order_id")
+        eff_qh = quote_hash or extra.get("quote_hash")
+        if eff_wo or eff_qh:
+            q_ok, q_err = self.verify_quote_binding(
+                work_order_id=str(eff_wo or ""),
+                quote_hash=str(eff_qh or ""),
+                tool_name=tool_name,
+                expected_price_usdc=expected_price_usdc,
+                payer_address=payer,
+                now_epoch=now_ts,
+            )
+            if not q_ok:
+                return False, {"error": "Quote Binding Rejected", "message": q_err}
+
+        # Replay protection on EIP-3009 (payer, nonce)
+        nullifier_key = f"eip3009:{payer.lower()}:{nonce.lower()}"
+        if self._is_tx_already_used(nullifier_key):
+            return False, {
+                "error": "Payment Nullified",
+                "message": "This EIP-3009 authorization nonce has already been redeemed.",
+                "tx_hash": nullifier_key,
+            }
+
+        # Cryptographic EIP-712 TransferWithAuthorization signature verification
+        typed_data = {
+            "types": {
+                "EIP712Domain": [
+                    {"name": "name", "type": "string"},
+                    {"name": "version", "type": "string"},
+                    {"name": "chainId", "type": "uint256"},
+                    {"name": "verifyingContract", "type": "address"},
+                ],
+                "TransferWithAuthorization": [
+                    {"name": "from", "type": "address"},
+                    {"name": "to", "type": "address"},
+                    {"name": "value", "type": "uint256"},
+                    {"name": "validAfter", "type": "uint256"},
+                    {"name": "validBefore", "type": "uint256"},
+                    {"name": "nonce", "type": "bytes32"},
+                ],
+            },
+            "primaryType": "TransferWithAuthorization",
+            "domain": {
+                "name": "USD Coin",
+                "version": "2",
+                "chainId": 8453,
+                "verifyingContract": Web3.to_checksum_address(self.usdc_contract),
+            },
+            "message": {
+                "from": Web3.to_checksum_address(payer),
+                "to": Web3.to_checksum_address(recipient),
+                "value": value_units,
+                "validAfter": valid_after,
+                "validBefore": valid_before,
+                "nonce": bytes.fromhex(nonce[2:]),
+            },
+        }
+        try:
+            signable = encode_typed_data(full_message=typed_data)
+            recovered = Account.recover_message(signable, signature=parsed["signature"])
+        except Exception as exc:
+            return False, {"error": f"Invalid EIP-712 TransferWithAuthorization signature: {exc}"}
+
+        if not recovered or recovered.lower() != payer.lower():
+            return False, {"error": "EIP-712 signature signer does not match EIP-3009 'from' address."}
+
+        use_facilitator = (
+            verify_with_facilitator
+            if verify_with_facilitator is not None
+            else os.getenv("SOUQ_X402_FACILITATOR_VERIFY", "false").strip().lower() == "true"
+        )
+        settlement_tx = nullifier_key
+        if use_facilitator:
+            post_fn = facilitator_post or requests.post
+            req_payload = {
+                "x402Version": 1,
+                "paymentHeader": payment_header,
+                "paymentRequirements": {
+                    "scheme": "exact",
+                    "network": "base",
+                    "maxAmountRequired": str(expected_units),
+                    "payTo": self.recipient_wallet,
+                    "asset": self.usdc_contract,
+                },
+            }
+            try:
+                v_resp = post_fn(f"{self.facilitator_url}/verify", json=req_payload, timeout=8)
+                v_data = v_resp.json() if hasattr(v_resp, "json") else {}
+                if getattr(v_resp, "status_code", 500) >= 400 or not v_data.get("isValid"):
+                    return False, {
+                        "error": "Facilitator verification rejected EIP-3009 payment.",
+                        "details": v_data,
+                    }
+                s_resp = post_fn(f"{self.facilitator_url}/settle", json=req_payload, timeout=12)
+                s_data = s_resp.json() if hasattr(s_resp, "json") else {}
+                if getattr(s_resp, "status_code", 500) >= 400 or not s_data.get("success", True):
+                    return False, {
+                        "error": "Facilitator settlement failed for EIP-3009 payment.",
+                        "details": s_data,
+                    }
+                tx_from_fac = s_data.get("txHash") or s_data.get("transaction")
+                if isinstance(tx_from_fac, str) and tx_from_fac.strip():
+                    settlement_tx = tx_from_fac.strip().lower()
+            except Exception as exc:
+                return False, {"error": f"x402 Facilitator request failed: {exc}"}
+
+        return True, {
+            "status": "PRECHECK_VERIFIED",
+            "tx_hash": settlement_tx,
+            "eip3009_nullifier": nullifier_key,
+            "payer_address": payer.lower(),
+            "amount_paid_usdc": round(value_units / 1e6, 6),
+            "gas_fee_eth": 0.0,
+            "is_simulated": False,
+            "tool_name": tool_name,
+            "payment_protocol": "x402_eip3009",
+            "work_order_id": eff_wo,
+            "quote_hash": eff_qh,
+        }
+
     @staticmethod
     def is_valid_tx_hash(tx_hash: Optional[str]) -> bool:
         if not tx_hash or not isinstance(tx_hash, str):
@@ -181,6 +647,7 @@ class X402PaymentGateway:
         return (
             self.receipt_engine.is_tx_already_redeemed(tx_norm)
             or self.api_key_ledger.is_reference_redeemed(tx_norm)
+            or self._is_eip3009_nullifier_used(tx_norm)
         )
 
     def _fetch_tx_context(self, tx_hash: str) -> Tuple[Any, Any]:
@@ -433,9 +900,12 @@ class X402PaymentGateway:
         simulate_test: bool = False,
         payer_signature: Optional[str] = None,
         payer_challenge: Optional[str] = None,
+        work_order_id: Optional[str] = None,
+        quote_hash: Optional[str] = None,
     ) -> Tuple[bool, Dict[str, Any]]:
         """
-        Verifies anti-replay and Base USDC settlement WITHOUT consuming the tx_hash receipt yet.
+        Verifies anti-replay, optional HMAC quote_hash/work_order_id binding, and Base USDC settlement
+        WITHOUT consuming the tx_hash receipt yet.
         Allows callers to execute the paid tool before committing the nullifier receipt.
         """
         start_t = time.time()
@@ -510,6 +980,21 @@ class X402PaymentGateway:
                 except Exception as e:
                     return False, {"error": f"On-chain Base verification failed: {str(e)}"}
 
+            if work_order_id or quote_hash:
+                q_ok, q_err = self.verify_quote_binding(
+                    work_order_id=str(work_order_id or ""),
+                    quote_hash=str(quote_hash or ""),
+                    tool_name=tool_name,
+                    expected_price_usdc=expected_price_usdc,
+                    payer_address=payer_address or None,
+                )
+                if not q_ok:
+                    return False, {
+                        "error": "Quote Binding Rejected",
+                        "message": q_err,
+                        "work_order_id": work_order_id,
+                    }
+
             return True, {
                 "status": "PRECHECK_VERIFIED",
                 "tx_hash": tx_hash,
@@ -518,6 +1003,8 @@ class X402PaymentGateway:
                 "gas_fee_eth": gas_fee_eth,
                 "is_simulated": bool(simulate_test),
                 "tool_name": tool_name,
+                "work_order_id": work_order_id,
+                "quote_hash": quote_hash,
             }
 
     def commit_payment_settlement(
@@ -532,16 +1019,22 @@ class X402PaymentGateway:
         client_agent_id: str = "anonymous_agent",
         client_user_agent: str = "AI-Agent-Client/1.0",
         start_t: Optional[float] = None,
+        work_order_id: Optional[str] = None,
+        quote_hash: Optional[str] = None,
+        payment_protocol: str = "x402_http",
+        eip3009_nullifier: Optional[str] = None,
     ) -> Tuple[bool, Dict[str, Any]]:
         """
-        Atomically re-checks anti-replay, records the receipt nullifier, and logs SETTLED telemetry.
+        Atomically re-checks anti-replay (on both tx_hash and eip3009_nullifier), records the receipt
+        nullifier, consumes work_order_id, and logs SETTLED telemetry.
         """
         t0 = start_t if start_t is not None else time.time()
         tx_hash = (tx_hash or "").strip().lower()
-        tx_lock = _get_tx_lock(tx_hash)
+        norm_nullifier = (eip3009_nullifier or "").strip().lower()
+        tx_lock = _get_tx_lock(norm_nullifier or tx_hash)
 
         with tx_lock.lock:
-            if self._is_tx_already_used(tx_hash):
+            if self._is_tx_already_used(tx_hash) or (norm_nullifier and self._is_tx_already_used(norm_nullifier)):
                 latency = int((time.time() - t0) * 1000)
                 self.negotiation_tracker.log_negotiation(
                     client_agent_id=client_agent_id,
@@ -549,16 +1042,31 @@ class X402PaymentGateway:
                     tool_requested=tool_name,
                     initial_quote_usd=expected_price_usdc,
                     settled_price_usd=None,
-                    payment_protocol="x402_http",
+                    payment_protocol=payment_protocol,
                     outcome="REJECTED_REPLAY_ATTEMPT",
                     latency_ms=latency,
                     rejection_reason=f"Transaction {tx_hash} already redeemed.",
                 )
                 return False, {
                     "error": "Payment Nullified",
-                    "message": "This transaction hash has already been redeemed.",
+                    "message": "This transaction hash or EIP-3009 authorization has already been redeemed.",
                     "tx_hash": tx_hash,
                 }
+
+            if work_order_id or quote_hash:
+                q_ok, q_err = self.verify_quote_binding(
+                    work_order_id=str(work_order_id or ""),
+                    quote_hash=str(quote_hash or ""),
+                    tool_name=tool_name,
+                    expected_price_usdc=expected_price_usdc,
+                    payer_address=payer_address or None,
+                )
+                if not q_ok:
+                    return False, {
+                        "error": "Quote Binding Rejected",
+                        "message": q_err,
+                        "work_order_id": work_order_id,
+                    }
 
             receipt = self.receipt_engine.generate_receipt(
                 tx_hash=tx_hash,
@@ -573,6 +1081,9 @@ class X402PaymentGateway:
                 gas_fee_eth=gas_fee_eth,
                 is_simulated=bool(is_simulated),
             )
+            self._consume_work_order(work_order_id)
+            if norm_nullifier:
+                self._record_eip3009_nullifier(norm_nullifier, tx_hash)
 
             latency = int((time.time() - t0) * 1000)
             self.negotiation_tracker.log_negotiation(
@@ -581,10 +1092,14 @@ class X402PaymentGateway:
                 tool_requested=tool_name,
                 initial_quote_usd=expected_price_usdc,
                 settled_price_usd=expected_price_usdc,
-                payment_protocol="x402_http",
+                payment_protocol=payment_protocol,
                 outcome="SETTLED",
                 latency_ms=latency,
-                metadata={"receipt_id": receipt["receipt_id"]},
+                metadata={
+                    "receipt_id": receipt["receipt_id"],
+                    "work_order_id": work_order_id,
+                    "quote_hash": quote_hash,
+                },
             )
 
             return True, {
@@ -592,6 +1107,9 @@ class X402PaymentGateway:
                 "receipt_id": receipt["receipt_id"],
                 "amount_paid_usdc": expected_price_usdc,
                 "tx_hash": tx_hash,
+                "work_order_id": work_order_id,
+                "quote_hash": quote_hash,
+                "payment_protocol": payment_protocol,
             }
 
     def verify_payment_and_settle(
@@ -605,6 +1123,8 @@ class X402PaymentGateway:
         simulate_test: bool = False,
         payer_signature: Optional[str] = None,
         payer_challenge: Optional[str] = None,
+        work_order_id: Optional[str] = None,
+        quote_hash: Optional[str] = None,
     ) -> Tuple[bool, Dict[str, Any]]:
         """
         Verifies on-chain Base USDC payment or explicit local test simulation,
@@ -624,6 +1144,8 @@ class X402PaymentGateway:
                 simulate_test=simulate_test,
                 payer_signature=payer_signature,
                 payer_challenge=payer_challenge,
+                work_order_id=work_order_id,
+                quote_hash=quote_hash,
             )
             if not ok:
                 return False, precheck_info
@@ -639,4 +1161,6 @@ class X402PaymentGateway:
                 client_agent_id=client_agent_id,
                 client_user_agent=client_user_agent,
                 start_t=start_t,
+                work_order_id=work_order_id,
+                quote_hash=quote_hash,
             )

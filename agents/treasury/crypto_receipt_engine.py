@@ -17,7 +17,11 @@ from agents.treasury.db_backend import (
     resolve_db_target,
     db_transaction,
     ensure_parent_dir,
+    load_souq_env,
+    get_ephemeral_test_pepper,
 )
+
+load_souq_env()
 
 
 def _format_koinly_utc(ts_val: Any) -> str:
@@ -65,8 +69,9 @@ class CryptoReceiptEngine:
     def _get_signing_key() -> str:
         return (
             os.getenv("SOUQ_RECEIPT_SIGNING_KEY")
+            or os.getenv("SOUQ_HASH_PEPPER")
             or os.getenv("SOUQ_API_KEY_PEPPER")
-            or "souq_sovereign_pepper_2026"
+            or get_ephemeral_test_pepper()
         )
 
     def _init_db(self) -> None:

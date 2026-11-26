@@ -15,16 +15,17 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 import requests
 from typing import Dict, Any, Optional, Tuple
-from dotenv import load_dotenv
 
 from agents.treasury.api_key_ledger import APIKeyLedger
 from agents.treasury.db_backend import (
     resolve_db_target,
     db_transaction,
     ensure_parent_dir,
+    load_souq_env,
+    get_ephemeral_test_pepper,
 )
 
-load_dotenv("config/.env")
+load_souq_env()
 
 _CLAIMS_TTL_HOURS = 24
 
@@ -150,7 +151,11 @@ class PolarAdapter:
 
     @staticmethod
     def _get_seal_pepper() -> bytes:
-        pepper = os.getenv("SOUQ_API_KEY_PEPPER") or "souq_sovereign_pepper_2026"
+        pepper = (
+            os.getenv("SOUQ_API_KEY_PEPPER")
+            or os.getenv("SOUQ_HASH_PEPPER")
+            or get_ephemeral_test_pepper()
+        )
         return pepper.encode("utf-8")
 
     @classmethod

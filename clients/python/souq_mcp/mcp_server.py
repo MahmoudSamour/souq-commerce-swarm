@@ -113,17 +113,6 @@ TOOLS_METADATA = [
         }
     },
     {
-        "name": "ast_security_scanner",
-        "description": "Python AST code security linter (compatibility alias for deep_ast_vulnerability_auditor) ($0.03 USDC).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "source_code": {"type": "string", "description": "Python source code to audit for vulnerabilities"}
-            },
-            "required": ["source_code"]
-        }
-    },
-    {
         "name": "synthetic_schema_verifier",
         "description": "Validates JSON objects against standard schema constraints ($0.01 USDC).",
         "inputSchema": {

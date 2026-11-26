@@ -23,9 +23,11 @@ def test_client_initialization():
 
 
 def test_mcp_metadata_completeness():
-    assert len(TOOLS_METADATA) == 17
+    assert len(TOOLS_METADATA) == 16
     tool_names = [t["name"] for t in TOOLS_METADATA]
     assert "souq_account_status" in tool_names
+    assert "ast_security_scanner" not in tool_names
+    assert "deep_ast_vulnerability_auditor" in tool_names
     assert "prediction_market_arbitrage_radar" in tool_names
     assert "token_context_compressor" in tool_names
     assert "quant_microstructure_radar" in tool_names
@@ -59,7 +61,7 @@ def test_mcp_server_tools_list_rpc():
     }
     resp = server.handle_message(list_msg)
     assert resp["id"] == 2
-    assert len(resp["result"]["tools"]) == 17
+    assert len(resp["result"]["tools"]) == 16
 
 
 def test_client_dict_and_kwargs_signatures_and_402_retry():
@@ -113,7 +115,7 @@ def test_client_dict_and_kwargs_signatures_and_402_retry():
             assert body1 == {"tool": "prompt_injection_firewall", "text": "hello"}
             assert captured_requests[0].headers.get("X-api-key") == "souq_live_abc"
 
-            r2 = client.call_tool("ast_security_scanner", source_code="x = 1")
+            r2 = client.call_tool("deep_ast_vulnerability_auditor", source_code="x = 1")
             assert r2["billing"] == "PAID_USDC_BASE"
             assert r2["tx_hash"] == "0x" + "a" * 64
             retry_req = captured_requests[2]

@@ -37,6 +37,20 @@ class RaisConductor:
         "5Y_CRYPTO_LAKE": "crypto_5y_microstructure_lake",
     }
 
+    CONCEPT_SOURCE_MAP: Dict[str, str] = {
+        "PREDICTION_MARKET_ARBITRAGE": "agents/production/mcp_tool_builder.py",
+        "CROSS_EXCHANGE_ARBITRAGE": "agents/production/mcp_tool_builder.py",
+        "ORDERBOOK_SLIPPAGE_SIMULATOR": "agents/production/mcp_tool_builder.py",
+        "SMART_MONEY_WHALE_RADAR": "agents/production/mcp_tool_builder.py",
+        "A2A_QUANT_RADAR": "agents/production/mcp_tool_builder.py",
+        "SMART_CONTRACT_HONEYPOT_RADAR": "agents/production/cyber_defense_vault.py",
+        "DEEP_AST_VULNERABILITY_AUDITOR": "agents/production/cyber_defense_vault.py",
+        "TOKEN_CONTEXT_COMPRESSOR": "agents/production/token_compressor.py",
+        "DEV_API_CHEATSHEET_VAULT": "agents/production/dev_intelligence_vault.py",
+        "DAILY_TECH_AI_TRENDS": "agents/production/dev_intelligence_vault.py",
+        "5Y_CRYPTO_LAKE": "agents/production/mcp_tool_builder.py",
+    }
+
     def __init__(self, db_path: str = "data/souq_treasury_lake.duckdb"):
         self.db_path = db_path
         self.ranker = OpportunityRanker()
@@ -239,8 +253,19 @@ class RaisConductor:
                 suggested_unit_price_usd=0.02
             ),
             ProductOpportunity(
-                concept_id="AST_SECURITY_LINTER",
-                title="Python & Solidity AST Security Vulnerability Scanner",
+                concept_id="SMART_CONTRACT_HONEYPOT_RADAR",
+                title="Live Base EVM Smart Contract Honeypot & Reentrancy Radar",
+                target_buyer="A2A_AGENT",
+                demand_intensity=9.8,
+                willingness_to_pay=9.4,
+                supply_saturation=1.4,
+                synthesis_complexity=2.0,
+                legal_risk_score=1.0,
+                suggested_unit_price_usd=0.03
+            ),
+            ProductOpportunity(
+                concept_id="DEEP_AST_VULNERABILITY_AUDITOR",
+                title="Deep Python AST Security Vulnerability Auditor (Lead Magnet)",
                 target_buyer="A2A_AGENT",
                 demand_intensity=9.0,
                 willingness_to_pay=8.0,
@@ -262,26 +287,24 @@ class RaisConductor:
             )
         ]
 
-        ranked_opportunities = self.ranker.rank_opportunities(test_opportunities)
+        funnel_telemetry = self.researcher.query_funnel_telemetry(self.db_path)
+        ranked_opportunities = self.ranker.rank_opportunities(
+            test_opportunities,
+            funnel_telemetry=funnel_telemetry,
+        )
 
-        # 2. Compliance Auditing (Amin) & Polar SKU Fulfillment Readiness
+        # 2. Compliance Auditing (Amin Real Static AST/URL Policy Audit) & Polar SKU Fulfillment Readiness
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         polar_catalog = self.polar_adapter.list_catalog()
         approved_catalog: List[Dict[str, Any]] = []
         pending_catalog: List[Dict[str, Any]] = []
         for opp in ranked_opportunities:
-            meta = {
-                "concept_id": opp["concept_id"],
-                "uses_public_data_only": True,
-                "bypasses_login": False,
-                "bypasses_captcha": False,
-                "bypasses_bot_protection": False,
-                "contains_pii": False,
-                "is_factual_or_original": True,
-                "claims_guaranteed_profit": False,
-                "is_restricted_source": False,
-                "unverified_third_party_funding": False,
-            }
-            cleared, audit_result = self.auditor.audit_product_concept(meta)
+            rel_src = self.CONCEPT_SOURCE_MAP.get(opp["concept_id"])
+            abs_src = os.path.join(repo_root, rel_src) if rel_src else ""
+            cleared, audit_result = self.auditor.audit_tool_source(
+                abs_src,
+                concept_id=opp["concept_id"],
+            )
             if not cleared:
                 continue
 
@@ -289,6 +312,7 @@ class RaisConductor:
                 opp["concept_id"], polar_catalog
             )
             opp["compliance_token"] = audit_result["clearance_token"]
+            opp["compliance_source_sha256"] = audit_result.get("source_sha256")
             opp["fulfillment_ready"] = fulfillment_ready
             if polar_sku:
                 opp["polar_sku"] = polar_sku
@@ -324,6 +348,7 @@ class RaisConductor:
             approved_catalog,
             telemetry_summary=traffic_summary,
             negotiation_stats=market_intel,
+            db_path=self.db_path,
         )
 
         # 5. Sovereign Ontology & Milestone Memory Sync

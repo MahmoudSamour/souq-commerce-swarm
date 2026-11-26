@@ -3,7 +3,7 @@ SOUQ // Opportunity Scoring & Elasticity Engine (Kashif Scout)
 Evaluates digital product concepts using the mathematical Souq Opportunity Metric (SOM).
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -37,24 +37,44 @@ class ProductOpportunity(BaseModel):
 
 class OpportunityRanker:
     """
-    Ranks market demand signals and selects optimal product opportunities.
+    Ranks market demand signals and selects optimal product opportunities,
+    incorporating live 402 -> SETTLED funnel telemetry and UNKNOWN_TOOL demand.
     """
 
-    def rank_opportunities(self, opportunities: List[ProductOpportunity]) -> List[Dict[str, Any]]:
+    def rank_opportunities(
+        self,
+        opportunities: List[ProductOpportunity],
+        funnel_telemetry: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        dropoffs = (funnel_telemetry or {}).get("funnel_dropoffs_402_to_settled") or {}
         scored = []
         for opp in opportunities:
-            score = opp.calculate_som_score()
+            base_score = opp.calculate_som_score()
+            concept_key = opp.concept_id.lower()
+            funnel_info = dropoffs.get(opp.concept_id) or dropoffs.get(concept_key) or {}
+            settled = int(funnel_info.get("settled_count", 0) or 0)
+            challenged = int(funnel_info.get("challenged_402_count", 0) or 0)
+            dropoff_rate = float(funnel_info.get("dropoff_rate_pct", 0.0) or 0.0)
+
+            # Reward tools with real settled conversions; penalize severe 402 drop-offs
+            telemetry_delta = min(3.0, settled * 0.5) - (0.25 if challenged >= 5 and settled == 0 else 0.0)
+            adjusted_score = round(max(0.0, base_score + telemetry_delta), 3)
+
             scored.append({
                 "concept_id": opp.concept_id,
                 "title": opp.title,
                 "target_buyer": opp.target_buyer,
-                "som_score": score,
+                "som_score": adjusted_score,
+                "base_som_score": base_score,
                 "legal_risk": opp.legal_risk_score,
                 "is_approved": opp.is_production_ready(),
-                "suggested_price": opp.suggested_unit_price_usd
+                "suggested_price": opp.suggested_unit_price_usd,
+                "live_settled_count": settled,
+                "live_402_challenges": challenged,
+                "live_dropoff_rate_pct": dropoff_rate,
             })
 
-        # Sort descending by SOM score
+        # Sort descending by telemetry-adjusted SOM score
         scored.sort(key=lambda x: x["som_score"], reverse=True)
         return scored
 

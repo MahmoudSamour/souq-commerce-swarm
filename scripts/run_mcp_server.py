@@ -280,44 +280,6 @@ def daily_tech_ai_trends_radar(
 
 
 @mcp.tool()
-def ast_security_scanner(
-    source_code: str,
-    payment_tx_hash: Optional[str] = None,
-    client_id: str = "agent-client-default"
-) -> Dict[str, Any]:
-    """
-    Performs static AST security linting and detects dangerous execution patterns,
-    eval injection, and shell vulnerabilities.
-    Cost: 0.03 USDC on Base. Requires payment_tx_hash.
-    """
-    price_usdc = 0.03
-    tool_name = "ast_security_scanner"
-
-    if not payment_tx_hash:
-        return payment_gateway.generate_402_challenge(
-            tool_name=tool_name,
-            price_usdc=price_usdc,
-            client_agent_id=client_id
-        )
-
-    settled, settlement_info = payment_gateway.verify_payment_and_settle(
-        tx_hash=payment_tx_hash,
-        expected_price_usdc=price_usdc,
-        tool_name=tool_name,
-        payload_data={"code_len": len(source_code)},
-        client_agent_id=client_id,
-        simulate_test=_is_sim_allowed(payment_tx_hash)
-    )
-
-    if not settled:
-        return {"error": "Payment Verification Failed", "details": settlement_info}
-
-    result = security_scanner.scan_python_code(source_code=source_code)
-    result["settlement_receipt"] = settlement_info
-    return result
-
-
-@mcp.tool()
 def synthetic_schema_verifier(
     data: Dict[str, Any],
     schema: Dict[str, Any],

@@ -12,7 +12,10 @@
   "mcpTransport": {
     "type": "streamable-http",
     "endpoint": "https://written-emera-arapython-bf7436a4.apps.mistral.run/mcp",
-    "methods": ["POST", "DELETE"],
+    "methods": [
+      "POST",
+      "DELETE"
+    ],
     "getBehavior": "405 Method Not Allowed (stateless JSON-RPC 2.0 via POST /mcp)"
   },
   "endpoints": {
@@ -31,8 +34,12 @@
     "prepaid_api_key": true,
     "polar_mor_checkout": true
   },
-  "defaultInputModes": ["application/json"],
-  "defaultOutputModes": ["application/json"],
+  "defaultInputModes": [
+    "application/json"
+  ],
+  "defaultOutputModes": [
+    "application/json"
+  ],
   "skills": [
     {
       "id": "token_context_compressor",
@@ -42,15 +49,42 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "raw_content": { "type": "string" },
-          "max_compression": { "type": "boolean", "default": true },
-          "mode": { "type": "string", "enum": ["auto", "html", "json", "code", "log", "logs", "markdown", "prose"], "default": "auto" },
-          "target_ratio": { "type": "number", "description": "Optional target compression ratio in (0.05, 0.95)" }
+          "raw_content": {
+            "type": "string"
+          },
+          "max_compression": {
+            "type": "boolean",
+            "default": true
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "html",
+              "json",
+              "code",
+              "log",
+              "logs",
+              "markdown",
+              "prose"
+            ],
+            "default": "auto"
+          },
+          "target_ratio": {
+            "type": "number",
+            "description": "Optional target compression ratio in (0.05, 0.95)"
+          }
         },
-        "required": ["raw_content"]
+        "required": [
+          "raw_content"
+        ]
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "ast_structural_slicer",
@@ -60,13 +94,24 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "source_code": { "type": "string" },
-          "target_symbol": { "type": "string" }
+          "source_code": {
+            "type": "string"
+          },
+          "target_symbol": {
+            "type": "string"
+          }
         },
-        "required": ["source_code", "target_symbol"]
+        "required": [
+          "source_code",
+          "target_symbol"
+        ]
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "quant_microstructure_radar",
@@ -76,11 +121,18 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "symbol": { "type": "string", "default": "BTC/USDT" }
+          "symbol": {
+            "type": "string",
+            "default": "BTC/USDT"
+          }
         }
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "cross_exchange_arbitrage_scanner",
@@ -90,11 +142,18 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "symbol": { "type": "string", "default": "BTC/USDT" }
+          "symbol": {
+            "type": "string",
+            "default": "BTC/USDT"
+          }
         }
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "orderbook_slippage_simulator",
@@ -104,13 +163,30 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "symbol": { "type": "string", "default": "BTC/USDT" },
-          "side": { "type": "string", "enum": ["BUY", "SELL"], "default": "BUY" },
-          "trade_size_usd": { "type": "number", "default": 10000.0 }
+          "symbol": {
+            "type": "string",
+            "default": "BTC/USDT"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY",
+              "SELL"
+            ],
+            "default": "BUY"
+          },
+          "trade_size_usd": {
+            "type": "number",
+            "default": 10000.0
+          }
         }
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "smart_money_whale_flow_radar",
@@ -120,12 +196,22 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "symbol": { "type": "string", "default": "BTC/USDT" },
-          "block_threshold_usd": { "type": "number", "default": 50000.0 }
+          "symbol": {
+            "type": "string",
+            "default": "BTC/USDT"
+          },
+          "block_threshold_usd": {
+            "type": "number",
+            "default": 50000.0
+          }
         }
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "prediction_market_arbitrage_radar",
@@ -135,12 +221,22 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "asset": { "type": "string", "default": "BTC" },
-          "limit": { "type": "integer", "default": 5 }
+          "asset": {
+            "type": "string",
+            "default": "BTC"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 5
+          }
         }
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "dev_api_cheatsheet_vault",
@@ -152,13 +248,25 @@
         "properties": {
           "ecosystem": {
             "type": "string",
-            "enum": ["openai", "anthropic", "stripe", "base_evm", "fastmcp", "mcp", "duckdb"],
+            "enum": [
+              "openai",
+              "anthropic",
+              "stripe",
+              "base_evm",
+              "fastmcp",
+              "mcp",
+              "duckdb"
+            ],
             "default": "openai"
           }
         }
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "daily_tech_ai_trends_radar",
@@ -168,26 +276,18 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "force_refresh": { "type": "boolean", "default": false }
+          "force_refresh": {
+            "type": "boolean",
+            "default": false
+          }
         }
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
-    },
-    {
-      "id": "ast_security_scanner",
-      "name": "AST Security Vulnerability Scanner",
-      "description": "Python AST code security linter (compatibility alias for deep_ast_vulnerability_auditor) ($0.03 USDC).",
-      "price_usdc": 0.03,
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "source_code": { "type": "string" }
-        },
-        "required": ["source_code"]
-      },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "synthetic_schema_verifier",
@@ -197,13 +297,24 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "data": { "type": "object" },
-          "schema": { "type": "object" }
+          "data": {
+            "type": "object"
+          },
+          "schema": {
+            "type": "object"
+          }
         },
-        "required": ["data", "schema"]
+        "required": [
+          "data",
+          "schema"
+        ]
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "prompt_injection_firewall",
@@ -213,13 +324,24 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "text": { "type": "string" },
-          "strict_mode": { "type": "boolean", "default": false }
+          "text": {
+            "type": "string"
+          },
+          "strict_mode": {
+            "type": "boolean",
+            "default": false
+          }
         },
-        "required": ["text"]
+        "required": [
+          "text"
+        ]
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "smart_contract_honeypot_radar",
@@ -229,13 +351,25 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "source_code": { "type": "string", "default": "" },
-          "contract_address": { "type": "string" },
-          "token_symbol": { "type": "string", "default": "TKN" }
+          "source_code": {
+            "type": "string",
+            "default": ""
+          },
+          "contract_address": {
+            "type": "string"
+          },
+          "token_symbol": {
+            "type": "string",
+            "default": "TKN"
+          }
         }
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "secret_leak_scanner",
@@ -245,13 +379,24 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "content": { "type": "string" },
-          "entropy_threshold": { "type": "number", "default": 4.2 }
+          "content": {
+            "type": "string"
+          },
+          "entropy_threshold": {
+            "type": "number",
+            "default": 4.2
+          }
         },
-        "required": ["content"]
+        "required": [
+          "content"
+        ]
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "deep_ast_vulnerability_auditor",
@@ -261,12 +406,20 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "source_code": { "type": "string" }
+          "source_code": {
+            "type": "string"
+          }
         },
-        "required": ["source_code"]
+        "required": [
+          "source_code"
+        ]
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     },
     {
       "id": "api_attack_surface_scanner",
@@ -276,13 +429,26 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "target_url": { "type": "string" },
-          "headers_to_check": { "type": "object", "additionalProperties": { "type": "string" } }
+          "target_url": {
+            "type": "string"
+          },
+          "headers_to_check": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
         },
-        "required": ["target_url"]
+        "required": [
+          "target_url"
+        ]
       },
-      "inputModes": ["application/json"],
-      "outputModes": ["application/json"]
+      "inputModes": [
+        "application/json"
+      ],
+      "outputModes": [
+        "application/json"
+      ]
     }
   ],
   "securitySchemes": {

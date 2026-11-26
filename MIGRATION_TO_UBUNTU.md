@@ -28,7 +28,7 @@ bash scripts/setup_ubuntu.sh
 
 ## 📦 What the Setup Script Restores Automatically
 
-1. **Environment & Secrets:** Unpacks `.env` and `config/.env` containing live Binance keys, Base USDC recipient wallet (`0x71C8F7...`), and rate-limiting rules.
+1. **Environment & Secrets:** Unpacks `.env` and `config/.env` containing Base USDC recipient wallet (`0x71C8F7...`), cryptographic peppers, and rate-limiting rules.
 2. **Koyeb CLI & Token:** Restores `~/.koyeb.yaml` and links the `koyeb` CLI tool globally.
 3. **Treasury Data Lake & Ledger:** Restores DuckDB (`data/souq_treasury_lake.duckdb`), all historical SHA-256 digital receipts (`data/receipts/`), and Koinly tax reports (`data/exports/`).
 4. **Daily AI Intelligence Cache:** Restores the latest daily tech trends cache (`data/cache/`).

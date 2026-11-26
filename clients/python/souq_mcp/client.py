@@ -1,14 +1,23 @@
 import os
 import re
 import json
+import secrets
 import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional, Tuple
+
+try:
+    from agents.treasury.wallet_gate import WalletEnforcementGate, WalletGateError
+except ImportError:  # Standalone PyPI install without swarm repo
+    WalletEnforcementGate = None  # type: ignore[assignment]
+    WalletGateError = PermissionError  # type: ignore[assignment]
 
 DEFAULT_EDGE_ENDPOINT = os.getenv(
     "SOUQ_ENDPOINT",
     "https://written-emera-arapython-bf7436a4.apps.mistral.run",
 )
+PINNED_TREASURY_WALLET = "0x71C8F7E4E98a9667793d5B52b71C8A36e65F79bF"
+DEFAULT_WALLET_GATE_LEDGER = os.path.expanduser("~/.cache/souq_mcp/wallet_gate_ledger.json")
 
 
 class PaymentRequiredError(PermissionError):
@@ -47,6 +56,8 @@ class SouqClient:
         private_key: Optional[str] = None,
         api_key: Optional[str] = None,
         timeout: float = 30.0,
+        allowed_recipients: Optional[Any] = None,
+        wallet_ledger_path: Optional[str] = None,
     ):
         chosen_endpoint = endpoint or os.getenv("SOUQ_ENDPOINT") or DEFAULT_EDGE_ENDPOINT
         self.endpoint = chosen_endpoint.rstrip("/")
@@ -54,6 +65,20 @@ class SouqClient:
         self.private_key = private_key or os.getenv("SOUQ_AGENT_PRIVATE_KEY")
         self.api_key = api_key or os.getenv("SOUQ_API_KEY")
         self.timeout = timeout
+        if allowed_recipients is not None:
+            self.allowed_recipients = [str(a).strip() for a in allowed_recipients if str(a).strip()]
+        else:
+            env_allowed = os.getenv("SOUQ_ALLOWED_RECIPIENTS", "").strip()
+            self.allowed_recipients = (
+                [a.strip() for a in env_allowed.split(",") if a.strip()]
+                if env_allowed
+                else [PINNED_TREASURY_WALLET]
+            )
+        self.wallet_ledger_path = (
+            wallet_ledger_path
+            or os.getenv("SOUQ_WALLET_GATE_LEDGER")
+            or DEFAULT_WALLET_GATE_LEDGER
+        )
 
     def _base_headers(self, include_auth: bool = True) -> Dict[str, str]:
         headers = {
@@ -211,12 +236,37 @@ class SouqClient:
                 if not recipient:
                     raise RuntimeError(f"402 challenge missing recipient address: {challenge}")
 
+                work_order_id = (
+                    err_headers.get("X-Souq-Work-Order-Id")
+                    or payment_details.get("work_order_id")
+                    or challenge.get("work_order_id")
+                    or f"wo_client_{secrets.token_hex(8)}"
+                )
+                quote_hash = (
+                    err_headers.get("X-Souq-Quote-Hash")
+                    or payment_details.get("quote_hash")
+                    or challenge.get("quote_hash")
+                )
+
                 tx_hash = self._settle_usdc_payment(
                     recipient=recipient,
                     amount_usdc=float(price),
+                    work_order_id=work_order_id,
+                    quote_hash=quote_hash,
                 )
-                retry_payload = {**payload, "payment_tx_hash": tx_hash, "tx_hash": tx_hash}
+                retry_payload = {
+                    **payload,
+                    "payment_tx_hash": tx_hash,
+                    "tx_hash": tx_hash,
+                    "work_order_id": work_order_id,
+                }
+                if quote_hash:
+                    retry_payload["quote_hash"] = quote_hash
                 retry_headers = {**self._base_headers(include_auth=False), "X-Payment-Tx": tx_hash}
+                if work_order_id:
+                    retry_headers["X-Souq-Work-Order-Id"] = str(work_order_id)
+                if quote_hash:
+                    retry_headers["X-Souq-Quote-Hash"] = str(quote_hash)
                 try:
                     paid_status, _, paid_result = self._request_json(
                         self.api_url,
@@ -315,7 +365,12 @@ class SouqClient:
             except _SouqHTTPError as e:
                 raise RuntimeError(f"HTTP {e.status_code}: {e.summary}") from e
             recipient = catalog["recipient_wallet"]
-            tx_hash = self._settle_usdc_payment(recipient=recipient, amount_usdc=amount_usdc)
+            tx_hash = self._settle_usdc_payment(
+                recipient=recipient,
+                amount_usdc=amount_usdc,
+                work_order_id=f"wo_topup_{secrets.token_hex(8)}",
+                max_per_call_usd=max(float(amount_usdc), 5.0),
+            )
 
         body: Dict[str, Any] = {"tx_hash": tx_hash, "label": label}
         if self.api_key:
@@ -335,9 +390,17 @@ class SouqClient:
             self.api_key = res["api_key"]
         return res
 
-    def _settle_usdc_payment(self, recipient: str, amount_usdc: float) -> str:
+    def _settle_usdc_payment(
+        self,
+        recipient: str,
+        amount_usdc: float,
+        work_order_id: Optional[str] = None,
+        quote_hash: Optional[str] = None,
+        max_per_call_usd: Optional[float] = None,
+    ) -> str:
         """
-        Signs, broadcasts, and confirms a Base L2 ERC-20 USDC transfer using private_key.
+        Signs, pre-simulates (eth_call), broadcasts, and confirms a Base L2 ERC-20 USDC transfer
+        guarded by WalletEnforcementGate.
         """
         try:
             from web3 import Web3
@@ -346,6 +409,21 @@ class SouqClient:
             raise ImportError(
                 "Automated x402 wallet settlement requires 'web3' and 'eth-account'. "
                 "Install via: pip install 'souq-mcp[wallet]'"
+            )
+
+        wo_id = (work_order_id or f"wo_sdk_{secrets.token_hex(8)}").strip()
+        gate = None
+        if WalletEnforcementGate is not None:
+            gate = WalletEnforcementGate(
+                allowed_recipients=self.allowed_recipients,
+                max_per_call_usd=max_per_call_usd,
+                ledger_path=self.wallet_ledger_path,
+            )
+            gate.check_policy(
+                recipient=recipient,
+                amount_usdc=amount_usdc,
+                work_order_id=wo_id,
+                quote_hash=quote_hash,
             )
 
         rpc_url = os.getenv("BASE_RPC_URL", "https://base-rpc.publicnode.com")
@@ -393,15 +471,30 @@ class SouqClient:
             "chainId": 8453,
         })
 
-        signed = account.sign_transaction(tx)
-        raw_tx = getattr(signed, "raw_transaction", getattr(signed, "rawTransaction", None))
-        if raw_tx is None:
-            raise RuntimeError("Unable to extract signed raw transaction bytes from eth-account object.")
+        def _sign_tx(unsigned_tx: Dict[str, Any]) -> bytes:
+            signed = account.sign_transaction(unsigned_tx)
+            raw_tx = getattr(signed, "raw_transaction", getattr(signed, "rawTransaction", None))
+            if raw_tx is None:
+                raise RuntimeError("Unable to extract signed raw transaction bytes from eth-account object.")
+            return raw_tx
 
-        tx_hash_bytes = w3.eth.send_raw_transaction(raw_tx)
-        tx_hash_hex = tx_hash_bytes.hex()
-        if not tx_hash_hex.startswith("0x"):
-            tx_hash_hex = f"0x{tx_hash_hex}"
+        if gate is not None:
+            tx_hash_hex = gate.authorize_and_broadcast(
+                w3=w3,
+                tx=tx,
+                sign_fn=_sign_tx,
+                recipient=recipient,
+                amount_usdc=amount_usdc,
+                work_order_id=wo_id,
+                quote_hash=quote_hash,
+            )
+        else:
+            # Standalone fallback: still enforce eth_call pre-simulation before broadcast
+            w3.eth.call({"from": tx["from"], "to": tx["to"], "data": tx.get("data", b""), "value": tx.get("value", 0)})
+            tx_hash_bytes = w3.eth.send_raw_transaction(_sign_tx(tx))
+            tx_hash_hex = tx_hash_bytes.hex()
+            if not tx_hash_hex.startswith("0x"):
+                tx_hash_hex = f"0x{tx_hash_hex}"
 
         receipt = w3.eth.wait_for_transaction_receipt(tx_hash_hex, timeout=45)
         if receipt.get("status") != 1:
@@ -446,7 +539,7 @@ class SouqClient:
         return self.call_tool("prediction_market_arbitrage_radar", asset=asset, limit=limit)
 
     def security_scan(self, source_code: str) -> Dict[str, Any]:
-        return self.call_tool("ast_security_scanner", source_code=source_code)
+        return self.call_tool("deep_ast_vulnerability_auditor", source_code=source_code)
 
     def verify_schema(self, data: Dict[str, Any], schema: Dict[str, Any]) -> Dict[str, Any]:
         return self.call_tool("synthetic_schema_verifier", data=data, schema=schema)

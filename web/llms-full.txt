@@ -146,18 +146,7 @@ Subsequent calls return an HTTP 402 challenge with machine-readable payment deta
 }
 ```
 
-### Tool 10: `ast_security_scanner`
-- Description: Static AST code security linter detecting eval/exec and dangerous shell calls.
-- Price: 0.03 USDC | Avg Tokens Saved: 4,000 | Est Savings: $0.020 | Net ROI: 67%
-- Params: `source_code` (string, required)
-```json
-{
-  "tool": "ast_security_scanner",
-  "source_code": "import os\ndef run_cmd(user_input):\n    os.system(user_input)"
-}
-```
-
-### Tool 11: `synthetic_schema_verifier`
+### Tool 10: `synthetic_schema_verifier`
 - Description: Validates JSON payloads against expected type schemas with zero hallucinations.
 - Price: 0.01 USDC | Avg Tokens Saved: 1,500 | Est Savings: $0.008 | Net ROI: 80%
 - Params: `data` (object, required), `schema` (object, required)

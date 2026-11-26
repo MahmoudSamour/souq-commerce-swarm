@@ -103,11 +103,11 @@ def test_agent_seo_agent_card_json(client):
     assert response.status_code == 200
     data = response.json()
     assert "skills" in data
-    assert len(data["skills"]) >= 16
+    assert len(data["skills"]) >= 15
 
     agent_json = client.get("/.well-known/agent.json")
     assert agent_json.status_code == 200
-    assert len(agent_json.json()["skills"]) == 16
+    assert len(agent_json.json()["skills"]) == 15
 
 
 def test_well_known_mcp_discovery(client):
@@ -223,7 +223,7 @@ def test_remote_streamable_http_mcp_endpoint(client):
 
     list_resp = client.post("/mcp", json={"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
     assert list_resp.status_code == 200
-    assert len(list_resp.json()["result"]["tools"]) == 17
+    assert len(list_resp.json()["result"]["tools"]) == 16
 
     status_resp = client.post(
         "/mcp",

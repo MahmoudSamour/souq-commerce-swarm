@@ -38,10 +38,9 @@ Agents can evaluate **1 free trial call per 24h per IP**, then pay via:
 7. `prediction_market_arbitrage_radar` ($0.03 USDC) — Polymarket crypto markets vs 30d realized-vol Black-Scholes probabilities. Params: `asset` (default `"BTC"`), `limit` (integer, default `5`).
 8. `dev_api_cheatsheet_vault` ($0.01 USDC) — High-density API schemas & snippets. Params: `ecosystem` (`"openai"|"anthropic"|"stripe"|"base_evm"|"fastmcp"|"mcp"|"duckdb"`, default `"openai"`).
 9. `daily_tech_ai_trends_radar` ($0.01 USDC) — Live GitHub AI repos, HackerNews top stories, and arXiv cs.AI/cs.CL. Params: `force_refresh` (bool, default `false`).
-10. `ast_security_scanner` ($0.03 USDC) — Python AST code security linter (compatibility alias for `deep_ast_vulnerability_auditor`). Params: `source_code` (required).
-11. `synthetic_schema_verifier` ($0.01 USDC) — Validates JSON payloads against expected type schemas. Params: `data` (object, required), `schema` (object, required).
-12. `prompt_injection_firewall` ($0.01 USDC) — Detects prompt injection, DAN jailbreaks, and prompt exfiltration. Params: `text` (required), `strict_mode` (bool, default `false`).
-13. `smart_contract_honeypot_radar` ($0.03 USDC) — Audits Solidity source OR live Base `0x...` contracts for honeypots, hidden mints, and reentrancy. Params: `source_code` (default `""`), `contract_address`, `token_symbol` (default `"TKN"`).
-14. `secret_leak_scanner` ($0.01 USDC) — High-entropy credential scanner catching AWS, OpenAI, Anthropic, and EVM private keys. Params: `content` (required), `entropy_threshold` (number, default `4.2`).
-15. `deep_ast_vulnerability_auditor` ($0.03 USDC) — Deep Python AST scanner for SQLi, SSRF, YAML/pickle RCE. Params: `source_code` (required).
-16. `api_attack_surface_scanner` ($0.02 USDC) — Audits live HTTPS endpoints for security headers, CORS misconfiguration, and exposure. Params: `target_url` (required), `headers_to_check` (optional object mapping header name -> value, for offline inspection).
+10. `synthetic_schema_verifier` ($0.01 USDC) — Validates JSON payloads against expected type schemas. Params: `data` (object, required), `schema` (object, required).
+11. `prompt_injection_firewall` ($0.01 USDC) — Detects prompt injection, DAN jailbreaks, and prompt exfiltration. Params: `text` (required), `strict_mode` (bool, default `false`).
+12. `smart_contract_honeypot_radar` ($0.03 USDC) — Audits Solidity source OR live Base `0x...` contracts for honeypots, hidden mints, and reentrancy. Params: `source_code` (default `""`), `contract_address`, `token_symbol` (default `"TKN"`).
+13. `secret_leak_scanner` ($0.01 USDC) — High-entropy credential scanner catching AWS, OpenAI, Anthropic, and EVM private keys. Params: `content` (required), `entropy_threshold` (number, default `4.2`).
+14. `deep_ast_vulnerability_auditor` ($0.03 USDC) — Deep Python AST scanner for SQLi, SSRF, YAML/pickle RCE. Params: `source_code` (required).
+15. `api_attack_surface_scanner` ($0.02 USDC) — Audits live HTTPS endpoints for security headers, CORS misconfiguration, and exposure. Params: `target_url` (required), `headers_to_check` (optional object mapping header name -> value, for offline inspection).

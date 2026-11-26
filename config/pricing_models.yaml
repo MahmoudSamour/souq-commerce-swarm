@@ -8,12 +8,12 @@ products:
     description: "Live crypto order-book imbalance, liquidation walls, and entropy metrics"
     sla_ms: 150
 
-  ast_security_scanner:
+  deep_ast_vulnerability_auditor:
     category: "mcp_tool"
     base_price_usdc: 0.03
     min_price_usdc: 0.015
     max_price_usdc: 0.08
-    description: "Static AST security linting & vulnerability analysis for Python/Solidity"
+    description: "Deep Python AST security vulnerability auditor (SQLi, SSRF, YAML/pickle RCE)"
     sla_ms: 300
 
   synthetic_schema_verifier:

@@ -1,5 +1,7 @@
 # Environment & Secrets
 .env
+.env*
+!.env.example
 *.env
 **/.env
 **/.env*
@@ -11,6 +13,7 @@
 .koyeb.yaml
 *.koyeb.yaml
 .koyeb_token_backup
+*token_backup*
 
 # Python Virtual Environments & Caches
 .venv/

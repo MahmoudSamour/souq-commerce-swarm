@@ -25,15 +25,18 @@ from agents.treasury.db_backend import (
     resolve_db_target,
     db_transaction,
     ensure_parent_dir,
+    load_souq_env,
+    get_ephemeral_test_pepper,
 )
 from agents.production.cyber_defense_vault import (
     PromptInjectionFirewall,
     SecretLeakScanner,
 )
+from agents.treasury.wallet_gate import WalletEnforcementGate, WalletGateError
 
+load_souq_env()
 logger = logging.getLogger("souq.marketplace_registry")
 
-_DEFAULT_PEPPER = "souq_sovereign_pepper_2026"
 PLATFORM_COMMISSION_RATE = 0.20  # 20% SOUQ commission, 80% Seller share
 MIN_PRICE_USD = 0.005
 MAX_PRICE_USD = 5.00
@@ -145,15 +148,31 @@ class MarketplaceRegistry:
         db_path: str = "data/souq_treasury_lake.duckdb",
         commission_rate: float = PLATFORM_COMMISSION_RATE,
         resolve_dns: bool = True,
+        payout_ledger_path: Optional[str] = None,
     ):
         self.db_path = db_path
         self.db_target, self.is_postgres = resolve_db_target(db_path)
         if not self.is_postgres:
             ensure_parent_dir(self.db_target)
+        if payout_ledger_path is not None:
+            self.payout_ledger_path = payout_ledger_path
+        elif os.getenv("SOUQ_PAYOUT_GATE_LEDGER"):
+            self.payout_ledger_path = os.getenv("SOUQ_PAYOUT_GATE_LEDGER")
+        elif not self.is_postgres:
+            self.payout_ledger_path = os.path.join(
+                os.path.dirname(os.path.abspath(self.db_target)),
+                "payout_gate_ledger.json",
+            )
+        else:
+            self.payout_ledger_path = "data/payout_gate_ledger.json"
 
         self.commission_rate = float(commission_rate)
         self.resolve_dns = resolve_dns
-        self._secret_pepper = os.getenv("SOUQ_API_KEY_PEPPER", "") or _DEFAULT_PEPPER
+        self._secret_pepper = (
+            os.getenv("SOUQ_HASH_PEPPER")
+            or os.getenv("SOUQ_API_KEY_PEPPER")
+            or get_ephemeral_test_pepper()
+        )
         self.prompt_firewall = PromptInjectionFirewall()
         self.secret_scanner = SecretLeakScanner()
         self._session = requests.Session()
@@ -720,6 +739,23 @@ class MarketplaceRegistry:
                     "requested_usd": req_amt,
                 }
 
+            payout_id = f"mpay_{secrets.token_hex(8)}"
+            payout_gate = WalletEnforcementGate(
+                allowed_recipients=[wallet],
+                max_per_call_usd=float(os.getenv("SOUQ_PAYOUT_MAX_PER_CALL_USD", "250.0")),
+                max_daily_spend_usd=float(os.getenv("SOUQ_PAYOUT_MAX_DAILY_USD", "1000.0")),
+                ledger_path=self.payout_ledger_path,
+            )
+            # Enforce policy BEFORE deducting seller balance so a gate rejection never corrupts balances
+            try:
+                payout_gate.check_policy(
+                    recipient=wallet,
+                    amount_usdc=req_amt,
+                    work_order_id=payout_id,
+                )
+            except WalletGateError as gate_err:
+                return False, {"error": "WalletEnforcementGate rejected payout", "reason": str(gate_err)}
+
             updated = con.execute(
                 """
                 UPDATE marketplace_sellers
@@ -733,7 +769,6 @@ class MarketplaceRegistry:
             if not updated:
                 return False, {"error": "Concurrent payout conflict; retry."}
 
-            payout_id = f"mpay_{secrets.token_hex(8)}"
             con.execute(
                 """
                 INSERT INTO marketplace_payouts (
@@ -741,6 +776,11 @@ class MarketplaceRegistry:
                 ) VALUES (?, ?, ?, ?, 'QUEUED', ?)
                 """,
                 (payout_id, seller_id, req_amt, wallet, now),
+            )
+            payout_gate.record_execution(
+                recipient=wallet,
+                amount_usdc=req_amt,
+                work_order_id=payout_id,
             )
             remaining = round(float(updated[0]), 6)
 
